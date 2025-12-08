@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productos</title>
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/facturas.css">
+</head>
+
+<body class="page-body">
+
+    <header class="topbar">
+        <h1>Sistema de Facturación</h1>
+        <div class="actions">
+            <span id="user-display">Usuario</span>
+            <button id="btn-logout" class="btn btn-secondary btn-sm">Salir</button>
+        </div>
+    </header>
+
+    <main class="content">
+        <div class="page-header">
+            <h2>Productos</h2>
+            <div class="header-actions">
+                <a href="/facturas" class="btn btn-secondary">Volver a Facturas</a>
+                <a href="/productos/nuevo" class="btn btn-primary">+ Nuevo Producto</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th>Precio Unitario</th>
+                        <th>Unidad</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="productos-tbody">
+                    <!-- Se llena con JS -->
+                    <tr>
+                        <td colspan="6" class="text-center">Cargando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="/js/productos.js"></script>
+</body>
+
+</html>
