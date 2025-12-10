@@ -34,12 +34,21 @@ public class UsuarioControlador {
     }
 
     @PostMapping("/auth/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request,
+            jakarta.servlet.http.HttpServletResponse response) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         String token = jwtTokenProvider.generateToken(userDetails);
+
+        // Crear cookie HTTP-Only
+        jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("jwt", token);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(false); // Cambiar a true en producción (HTTPS)
+        cookie.setPath("/");
+        cookie.setMaxAge(7 * 24 * 60 * 60); // 7 días
+        response.addCookie(cookie);
 
         String rol = userDetails.getAuthorities().stream()
                 .findFirst()
@@ -50,11 +59,13 @@ public class UsuarioControlador {
     }
 
     @GetMapping("/usuarios")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMINISTRADOR')")
     public List<Usuario> listar() {
         return servicio.listar();
     }
 
     @GetMapping("/usuarios/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<Usuario> buscarPorId(@PathVariable Long id) {
         return servicio.buscarPorId(id)
                 .map(ResponseEntity::ok)
@@ -62,14 +73,14 @@ public class UsuarioControlador {
     }
 
     @PostMapping("/usuarios")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMINISTRADOR')")
     public Usuario crear(@RequestBody Usuario usuario) {
         usuario.setPassword(passwordEncoder.encode(usuario.getPassword()));
         return servicio.guardar(usuario);
     }
 
     @PutMapping("/usuarios/{id}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<Usuario> actualizar(@PathVariable Long id,
             @RequestBody Usuario usuario) {
         return servicio.buscarPorId(id)
@@ -86,7 +97,7 @@ public class UsuarioControlador {
     }
 
     @DeleteMapping("/usuarios/{id}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         if (servicio.buscarPorId(id).isEmpty()) {
             return ResponseEntity.notFound().build();

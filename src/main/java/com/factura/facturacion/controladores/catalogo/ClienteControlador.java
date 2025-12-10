@@ -81,6 +81,7 @@ public class ClienteControlador {
 
     // Eliminar cliente
     @DeleteMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         if (clienteServicio.buscarPorId(id).isEmpty()) {
             return ResponseEntity.notFound().build();

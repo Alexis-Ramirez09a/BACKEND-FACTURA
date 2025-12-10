@@ -32,132 +32,212 @@ public class FacturaReporteServicio {
 
         doc.open();
 
-        // --- ENCABEZADO (EMPRESA) ---
-        Paragraph title = new Paragraph("FACTURA ELECTRÓNICA", FONT_TITLE);
-        title.setAlignment(Element.ALIGN_CENTER);
-        doc.add(title);
-        doc.add(new Paragraph(" ")); // Espacio
+        // --- COLORES & FUENTES ---
+        com.lowagie.text.pdf.BaseFont bf = com.lowagie.text.pdf.BaseFont.createFont(
+                com.lowagie.text.pdf.BaseFont.HELVETICA, com.lowagie.text.pdf.BaseFont.CP1252,
+                com.lowagie.text.pdf.BaseFont.NOT_EMBEDDED);
+        Font fontTitle = new Font(bf, 18, Font.BOLD, java.awt.Color.DARK_GRAY);
+        Font fontSubtitle = new Font(bf, 12, Font.BOLD, java.awt.Color.BLACK);
+        Font fontRegular = new Font(bf, 10, Font.NORMAL, java.awt.Color.BLACK);
+        Font fontSmall = new Font(bf, 8, Font.NORMAL, java.awt.Color.GRAY);
+        Font fontTableHeader = new Font(bf, 10, Font.BOLD, java.awt.Color.WHITE);
 
-        PdfPTable headerTable = new PdfPTable(2);
-        headerTable.setWidthPercentage(100);
-        headerTable.setWidths(new float[] { 1, 1 });
+        java.awt.Color headerBgColor = new java.awt.Color(50, 60, 160); // Azul profesional
+        java.awt.Color lightGray = new java.awt.Color(240, 240, 240);
 
-        // Columna Izquierda: Logo (simulado) y Datos Emisor
-        PdfPCell cellEmisor = new PdfPCell();
-        cellEmisor.setBorder(0);
-        cellEmisor.addElement(new Paragraph(factura.getEmpresa().getRazonSocial(), FONT_HEADER));
-        cellEmisor.addElement(new Paragraph("RUC: " + factura.getEmpresa().getRuc(), FONT_BODY));
-        cellEmisor.addElement(new Paragraph("Dir: " + factura.getEmpresa().getDireccionMatriz(), FONT_BODY));
-        cellEmisor.addElement(new Paragraph(
-                "Obligado a llevar contabilidad: " + factura.getEmpresa().getObligadoLlevarContabilidad(), FONT_BODY));
+        // --- TABLA MAESTRA (2 columnas: Izq Empresa, Der Factura Info) ---
+        PdfPTable mainTable = new PdfPTable(2);
+        mainTable.setWidthPercentage(100);
+        mainTable.setWidths(new float[] { 1.2f, 1f });
+        mainTable.getDefaultCell().setBorder(0);
 
-        // Columna Derecha: Datos Factura
+        // --- COLUMNA 1: INFO EMPRESA ---
+        PdfPCell cellEmpresa = new PdfPCell();
+        cellEmpresa.setBorder(0);
+
+        // Nombre Empresa (Grande) se toma de la BD (DataInitializer setea Tienda 24 de
+        // Mayo)
+        Paragraph pEmpresa = new Paragraph(factura.getEmpresa().getRazonSocial(), fontTitle);
+        cellEmpresa.addElement(pEmpresa);
+
+        // Dirección y Detalles
+        String dir = factura.getEmpresa().getDireccionMatriz();
+        // Dirección hardcoded extra si falta en BD o para asegurar "Via 24 de mayo"
+        if (dir == null || dir.isEmpty())
+            dir = "Via 24 de mayo";
+
+        cellEmpresa.addElement(new Paragraph(dir, fontRegular));
+        cellEmpresa.addElement(new Paragraph("RUC: " + factura.getEmpresa().getRuc(), fontRegular));
+        cellEmpresa.addElement(new Paragraph(
+                "Obligado a llevar contabilidad: " + factura.getEmpresa().getObligadoLlevarContabilidad(), fontSmall));
+        cellEmpresa.addElement(new Paragraph("\n")); // Espacio
+
+        mainTable.addCell(cellEmpresa);
+
+        // --- COLUMNA 2: INFO FACTURA (Recuadro) ---
         PdfPCell cellFactura = new PdfPCell();
         cellFactura.setBorder(0);
-        cellFactura.addElement(new Paragraph("No: " + factura.getSecuencial(), FONT_HEADER));
-        cellFactura.addElement(new Paragraph(
-                "Autorización: " + (factura.getClaveAcceso() != null ? factura.getClaveAcceso() : "PENDIENTE"),
-                FONT_BODY));
-        cellFactura.addElement(new Paragraph("Ambiente: " + factura.getEmpresa().getAmbiente(), FONT_BODY));
-        cellFactura.addElement(new Paragraph("Emisión: " + factura.getEmpresa().getTipoEmision(), FONT_BODY));
-        cellFactura.addElement(new Paragraph("Clave Acceso: " + factura.getClaveAcceso(), FONT_BODY));
 
-        headerTable.addCell(cellEmisor);
-        headerTable.addCell(cellFactura);
-        doc.add(headerTable);
+        // Tabla anidada para el borde
+        PdfPTable infoTable = new PdfPTable(1);
+        infoTable.setWidthPercentage(100);
 
-        doc.add(new Paragraph(" "));
-        doc.add(new Paragraph(
-                "----------------------------------------------------------------------------------------------------------------------------------"));
-        doc.add(new Paragraph(" "));
+        PdfPCell infoCell = new PdfPCell();
+        infoCell.setBorderWidth(1);
+        infoCell.setBorderColor(java.awt.Color.LIGHT_GRAY);
+        infoCell.setPadding(10);
 
-        // --- DATOS CLIENTE ---
-        PdfPTable clientTable = new PdfPTable(2);
+        // Contenido del recuadro
+        infoCell.addElement(new Paragraph("R.U.C.: " + factura.getEmpresa().getRuc(), fontSubtitle));
+        infoCell.addElement(new Paragraph("FACTURA", fontTitle));
+        infoCell.addElement(new Paragraph("No. " + factura.getSecuencial(), fontSubtitle));
+        infoCell.addElement(new Paragraph("Fecha: " + factura.getFechaEmision(), fontRegular));
+        infoCell.addElement(new Paragraph("AUTORIZACIÓN:", fontSmall));
+        infoCell.addElement(new Paragraph(factura.getClaveAcceso(), fontSmall));
+
+        infoTable.addCell(infoCell);
+        cellFactura.addElement(infoTable);
+
+        mainTable.addCell(cellFactura);
+
+        doc.add(mainTable);
+        doc.add(new Paragraph("\n"));
+
+        // --- INFO CLIENTE (Banda gris) ---
+        PdfPTable clientTable = new PdfPTable(1);
         clientTable.setWidthPercentage(100);
-        clientTable.setWidths(new float[] { 2, 6 }); // Labels vs Values
+
+        PdfPCell clientCell = new PdfPCell();
+        clientCell.setBackgroundColor(lightGray);
+        clientCell.setPadding(8);
+        clientCell.setBorder(0);
 
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+        String fechaStr = sdf.format(java.sql.Timestamp.valueOf(factura.getFechaEmision().atStartOfDay()));
 
-        addClientRow(clientTable, "Razón Social:", factura.getCliente().getNombreRazonSocial());
-        addClientRow(clientTable, "Identificación:", factura.getCliente().getIdentificacion());
-        addClientRow(clientTable, "Fecha Emisión:",
-                sdf.format(java.sql.Timestamp.valueOf(factura.getFechaEmision().atStartOfDay())));
-        addClientRow(clientTable, "Dirección:", factura.getCliente().getDireccion());
+        Paragraph pCliente = new Paragraph();
+        pCliente.add(new Phrase("Cliente: ", fontSubtitle));
+        pCliente.add(new Phrase(factura.getCliente().getNombreRazonSocial() + "   ", fontRegular));
+        pCliente.add(new Phrase("RUC/CI: ", fontSubtitle));
+        pCliente.add(new Phrase(factura.getCliente().getIdentificacion() + "   ", fontRegular));
+        pCliente.add(new Phrase("Fecha Emisión: ", fontSubtitle));
+        pCliente.add(new Phrase(fechaStr, fontRegular));
 
+        clientCell.addElement(pCliente);
+
+        Paragraph pDirCli = new Paragraph();
+        pDirCli.add(new Phrase("Dirección: ", fontSubtitle));
+        pDirCli.add(new Phrase(factura.getCliente().getDireccion() != null ? factura.getCliente().getDireccion() : "-",
+                fontRegular));
+
+        clientCell.addElement(pDirCli);
+
+        clientTable.addCell(clientCell);
         doc.add(clientTable);
-        doc.add(new Paragraph(" "));
+        doc.add(new Paragraph("\n"));
 
-        // --- DETALLES ---
+        // --- DETALLES DE PRODUCTOS ---
         PdfPTable itemsTable = new PdfPTable(5);
         itemsTable.setWidthPercentage(100);
-        itemsTable.setWidths(new float[] { 2, 4, 2, 2, 2 }); // Cod, Desc, Cant, Unit, Total
+        itemsTable.setWidths(new float[] { 1.5f, 4f, 1.5f, 1.5f, 1.5f }); // Cod, Desc, Cant, Unit, Total
 
-        // Headers
-        addTableHeader(itemsTable, "Código");
-        addTableHeader(itemsTable, "Descripción");
-        addTableHeader(itemsTable, "Cant");
-        addTableHeader(itemsTable, "P.Unit");
-        addTableHeader(itemsTable, "Total");
+        // Headers con fondo azul
+        addStyledHeader(itemsTable, "Cód.", fontTableHeader, headerBgColor);
+        addStyledHeader(itemsTable, "Descripción", fontTableHeader, headerBgColor);
+        addStyledHeader(itemsTable, "Cant.", fontTableHeader, headerBgColor);
+        addStyledHeader(itemsTable, "P.Unit", fontTableHeader, headerBgColor);
+        addStyledHeader(itemsTable, "Total", fontTableHeader, headerBgColor);
 
         // Rows
-        for (FacturaDetalle det : factura.getDetalles()) {
-            itemsTable.addCell(new PdfPCell(new Phrase(det.getCodigoPrincipal(), FONT_BODY)));
-            itemsTable.addCell(new PdfPCell(new Phrase(det.getDescripcion(), FONT_BODY)));
-            itemsTable.addCell(new PdfPCell(new Phrase(det.getCantidad().toString(), FONT_BODY)));
-            itemsTable.addCell(new PdfPCell(new Phrase(det.getPrecioUnitario().toString(), FONT_BODY)));
-            itemsTable.addCell(new PdfPCell(new Phrase(det.getPrecioTotalSinImpuesto().toString(), FONT_BODY)));
+        for (com.factura.facturacion.entidades.factura.FacturaDetalle det : factura.getDetalles()) {
+            addStyledCell(itemsTable, det.getCodigoPrincipal(), fontRegular);
+            addStyledCell(itemsTable, det.getDescripcion(), fontRegular);
+            addStyledCell(itemsTable, det.getCantidad().toString(), fontRegular);
+            addStyledCell(itemsTable, det.getPrecioUnitario().toString(), fontRegular);
+            addStyledCell(itemsTable, det.getPrecioTotalSinImpuesto().toString(), fontRegular);
         }
+
+        // Rellenar filas vacías para estética (opcional: o solo dejar espacio)
         doc.add(itemsTable);
-        doc.add(new Paragraph(" "));
+        doc.add(new Paragraph("\n"));
 
         // --- TOTALES ---
-        PdfPTable totalTable = new PdfPTable(2);
-        totalTable.setWidthPercentage(40);
-        totalTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        totalTable.setWidths(new float[] { 1, 1 });
+        PdfPTable footerTable = new PdfPTable(2);
+        footerTable.setWidthPercentage(100);
+        footerTable.setWidths(new float[] { 6f, 4f });
 
-        addTotalRow(totalTable, "Subtotal 12%", factura.getSubtotalIva12().toPlainString());
-        addTotalRow(totalTable, "Subtotal 0%", factura.getSubtotalIva0().toPlainString());
-        addTotalRow(totalTable, "Subtotal No Obj", factura.getSubtotalNoObjetoIva().toPlainString());
-        addTotalRow(totalTable, "Subtotal Exento", factura.getSubtotalExentoIva().toPlainString());
-        addTotalRow(totalTable, "Subtotal Sin Imp", factura.getTotalSinImpuestos().toPlainString());
-        addTotalRow(totalTable, "Descuento", factura.getTotalDescuento().toPlainString());
-        addTotalRow(totalTable, "IVA 12%", factura.getValorIva().toPlainString());
-        addTotalRow(totalTable, "Propina", factura.getPropina().toPlainString());
-        addTotalRow(totalTable, "VALOR TOTAL", factura.getImporteTotal().toPlainString());
+        // Celda Izq: Info Adicional o Pagos (Vacio por ahora)
+        PdfPCell cellLeft = new PdfPCell(new Paragraph(
+                "Información Adicional\nEmail: soporte@tienda24mayo.com\nTelf: 0991234567\nDirección: Via 24 de Mayo",
+                fontSmall));
+        cellLeft.setBorderWidth(1);
+        cellLeft.setBorderColor(java.awt.Color.LIGHT_GRAY);
+        cellLeft.setPadding(5);
+        footerTable.addCell(cellLeft);
 
-        doc.add(totalTable);
+        // Celda Der: Totales
+        PdfPCell cellTotales = new PdfPCell();
+        cellTotales.setBorder(0);
+
+        PdfPTable tTable = new PdfPTable(2);
+        tTable.setWidthPercentage(100);
+
+        addTotalRow(tTable, "Subtotal 12%", factura.getSubtotalIva12().toPlainString(), fontRegular, fontSubtitle);
+        addTotalRow(tTable, "Subtotal 0%", factura.getSubtotalIva0().toPlainString(), fontRegular, fontSubtitle);
+        addTotalRow(tTable, "IVA", factura.getValorIva().toPlainString(), fontRegular, fontSubtitle);
+        addTotalRow(tTable, "TOTAL", factura.getImporteTotal().toPlainString(), fontSubtitle, fontTitle); // Total más
+                                                                                                          // grande
+
+        cellTotales.addElement(tTable);
+        footerTable.addCell(cellTotales);
+
+        doc.add(footerTable);
 
         doc.close();
         return out.toByteArray();
     }
 
-    private void addClientRow(PdfPTable table, String label, String value) {
-        PdfPCell cellLabel = new PdfPCell(new Phrase(label, FONT_BODY_BOLD));
-        cellLabel.setBorder(0);
-        table.addCell(cellLabel);
+    private void addStyledHeader(PdfPTable table, String text, Font font, java.awt.Color bgColor) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setBackgroundColor(bgColor);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setPadding(5);
+        table.addCell(cell);
+    }
 
-        PdfPCell cellValue = new PdfPCell(new Phrase(value != null ? value : "", FONT_BODY));
-        cellValue.setBorder(0);
-        table.addCell(cellValue);
+    private void addStyledCell(PdfPTable table, String text, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setPadding(5);
+        // cell.setBorderWidthBottom(1);
+        // cell.setBorderColorBottom(java.awt.Color.LIGHT_GRAY);
+        table.addCell(cell);
+    }
+
+    private void addClientRow(PdfPTable table, String label, String value) {
+        // Depreciado por el nuevo diseño
     }
 
     private void addTableHeader(PdfPTable table, String headerTitle) {
-        PdfPCell header = new PdfPCell();
-        // header.setGrayFill(0.9f); // Opcional, si se desea fondo gris
-        header.setBorderWidth(1);
-        header.setPhrase(new Phrase(headerTitle, FONT_BODY_BOLD));
-        table.addCell(header);
+        // Depreciado
     }
 
     private void addTotalRow(PdfPTable table, String label, String value) {
-        PdfPCell cellLabel = new PdfPCell(new Phrase(label, FONT_BODY));
+        // Depreciado
+    }
+
+    private void addTotalRow(PdfPTable table, String label, String value, Font fontLbl, Font fontVal) {
+        PdfPCell cellLabel = new PdfPCell(new Phrase(label, fontLbl));
         cellLabel.setBorderWidth(1);
+        cellLabel.setBorderColor(java.awt.Color.LIGHT_GRAY);
+        cellLabel.setPadding(4);
         table.addCell(cellLabel);
 
-        PdfPCell cellValue = new PdfPCell(new Phrase(value, FONT_BODY));
+        PdfPCell cellValue = new PdfPCell(new Phrase(value, fontVal));
         cellValue.setHorizontalAlignment(Element.ALIGN_RIGHT);
         cellValue.setBorderWidth(1);
+        cellValue.setBorderColor(java.awt.Color.LIGHT_GRAY);
+        cellValue.setPadding(4);
         table.addCell(cellValue);
     }
+
 }

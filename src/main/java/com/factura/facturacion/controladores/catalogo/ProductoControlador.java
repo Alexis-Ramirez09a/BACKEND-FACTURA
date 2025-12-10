@@ -54,14 +54,6 @@ public class ProductoControlador {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // Buscar por código auxiliar
-    @GetMapping("/codigo-auxiliar/{codigo}")
-    public ResponseEntity<Producto> buscarPorCodigoAuxiliar(@PathVariable String codigo) {
-        return productoServicio.buscarPorCodigoAuxiliar(codigo)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
     // Buscar productos por texto en la descripción
     @GetMapping("/buscar")
     public List<Producto> buscarPorDescripcion(@RequestParam("q") String texto) {
@@ -89,6 +81,7 @@ public class ProductoControlador {
 
     // Eliminar producto
     @DeleteMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         if (productoServicio.buscarPorId(id).isEmpty()) {
             return ResponseEntity.notFound().build();

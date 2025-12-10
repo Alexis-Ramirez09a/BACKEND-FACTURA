@@ -38,6 +38,7 @@ public class ReporteControlador {
     }
 
     @GetMapping("/facturas")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMINISTRADOR', 'VENDEDOR')")
     public ResponseEntity<byte[]> reporteFacturas() throws DocumentException {
         byte[] pdf = reporteServicio.generarReporteFacturas();
         return ResponseEntity.ok()

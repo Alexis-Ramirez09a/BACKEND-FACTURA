@@ -40,8 +40,8 @@ async function cargarEmpresas() {
 
             // Si hay empresas, cargar establecimientos de la primera (o esperar selección)
             if (empresas.length > 0) {
-                // select.value = empresas[0].id; // Opcional: seleccionar la primera por defecto
-                // cargarEstablecimientos(empresas[0].id);
+                select.value = empresas[0].id;
+                cargarEstablecimientos(empresas[0].id);
             } else {
                 alert("No hay empresas registradas. Debes crear una empresa primero.");
             }
@@ -68,6 +68,12 @@ async function cargarEstablecimientos(empresaId) {
                 opt.textContent = e.codigo + " - " + (e.nombreComercial || "");
                 select.appendChild(opt);
             });
+
+            // Auto-seleccionar el primero
+            if (establecimientos.length > 0) {
+                select.value = establecimientos[0].id;
+                cargarPuntosEmision(establecimientos[0].id);
+            }
         }
     } catch (e) { console.error(e); }
 }
@@ -89,6 +95,11 @@ async function cargarPuntosEmision(establecimientoId) {
                 opt.textContent = p.codigo;
                 select.appendChild(opt);
             });
+
+            // Auto-seleccionar el primero
+            if (puntos.length > 0) {
+                select.value = puntos[0].id;
+            }
         }
     } catch (e) { console.error(e); }
 }
@@ -99,7 +110,7 @@ function llenarSelectProductos(select) {
     PRODUCTOS_CACHE.forEach(p => {
         const opt = document.createElement("option");
         opt.value = p.id;
-        opt.textContent = `${p.nombre} - $${p.precioUnitario}`;
+        opt.textContent = `${p.descripcion} - $${p.precioUnitario}`;
         opt.dataset.precio = p.precioUnitario;
         select.appendChild(opt);
     });
@@ -174,7 +185,7 @@ function agregarLinea() {
         <td><input class="desc" type="number" value="0" min="0" max="100" step="0.01"></td>
         <td>
             <select class="iva">
-                <option value="12">12%</option>
+                <option value="15">15%</option>
                 <option value="0">0%</option>
             </select>
         </td>
@@ -325,6 +336,26 @@ async function guardarFactura() {
 
     const factura = obtenerFacturaJSON();
 
+    // AUTO-CREAR CLIENTE SI ES NUEVO
+    if (!factura.clienteId) {
+        const identificacion = document.getElementById("identificacion-cliente").value;
+        const nombre = document.getElementById("nombre-cliente").value;
+
+        if (identificacion && nombre) {
+            // Intentar crear cliente
+            try {
+                const nuevo = await crearClienteEnFondo(identificacion, nombre);
+                factura.clienteId = nuevo.id;
+            } catch (err) {
+                alert("Error creando cliente automático: " + err.message);
+                return;
+            }
+        } else {
+            alert("Debe seleccionar un cliente o ingresar Identificación y Nombre.");
+            return;
+        }
+    }
+
     try {
         const resp = await fetch("/api/facturas/emitir", {
             method: "POST",
@@ -397,6 +428,13 @@ document.addEventListener("DOMContentLoaded", () => {
         buscarClienteParcial(e.target.value);
     });
 
+    inputBusqueda.addEventListener("blur", (e) => {
+        // Retrasamos un poco para permitir click en la lista
+        setTimeout(() => {
+            buscarExacto(e.target.value);
+        }, 200);
+    });
+
     // Ocultar lista al hacer clic fuera
     document.addEventListener("click", (e) => {
         if (!e.target.closest("#identificacion-cliente") && !e.target.closest("#lista-resultados-cliente")) {
@@ -464,7 +502,7 @@ function mostrarResultados(clientes) {
         li.style.padding = "0.5rem 1rem";
         li.style.cursor = "pointer";
         li.style.borderBottom = "1px solid #eee";
-        li.textContent = `${c.identificacion} - ${c.razonSocial}`;
+        li.textContent = `${c.identificacion} - ${c.nombreRazonSocial}`;
         li.onmouseover = () => li.style.backgroundColor = "#f8fafc";
         li.onmouseout = () => li.style.backgroundColor = "white";
 
@@ -478,9 +516,37 @@ function mostrarResultados(clientes) {
 
 function seleccionarCliente(c) {
     document.getElementById("identificacion-cliente").value = c.identificacion;
-    document.getElementById("nombre-cliente").value = c.razonSocial;
+    document.getElementById("nombre-cliente").value = c.nombreRazonSocial;
     document.getElementById("cliente-id").value = c.id;
     document.getElementById("lista-resultados-cliente").style.display = "none";
+}
+
+// BÚSQUEDA EXACTA AL SALIR DEL CAMPO (BLUR)
+async function buscarExacto(identificacion) {
+    if (!identificacion) return;
+
+    // Si ya tenemos un ID seleccionado y la identificación coincide, no hacemos nada
+    const currentId = document.getElementById("cliente-id").value;
+    // (Podríamos validar si coincide, por ahora simplificamos)
+
+    const token = obtenerToken();
+    try {
+        const res = await fetch(`/api/clientes/identificacion/${identificacion}`, {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        if (res.ok) {
+            const c = await res.json();
+            seleccionarCliente(c);
+        } else {
+            // No existe: limpiamos ID para indicar que es nuevo, pero dejamos la identificación y permitimos editar nombre
+            console.log("Cliente no encontrado, permitir creación manual.");
+            document.getElementById("cliente-id").value = "";
+            // Opcional: limpiar nombre si queremos forzar escritura
+            // document.getElementById("nombre-cliente").value = ""; 
+        }
+    } catch (e) {
+        console.error("Error buscando exacto", e);
+    }
 }
 
 // CREAR CLIENTE MODAL

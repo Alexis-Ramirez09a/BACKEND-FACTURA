@@ -63,16 +63,18 @@ function renderizarTabla(productos) {
         const rol = localStorage.getItem('rol');
         let botones = '';
 
-        if (rol === 'ADMIN') {
+        if (rol === 'ADMINISTRADOR') {
+            botones += `<button class="btn btn-sm btn-primary me-2" onclick="editarProducto(${producto.id})">Editar</button>`;
             botones += `<button class="btn btn-sm btn-danger" onclick="eliminarProducto(${producto.id})">Eliminar</button>`;
         }
 
+        const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${producto.id}</td>
             <td>${producto.codigoPrincipal}</td>
             <td>${producto.descripcion}</td>
             <td>${producto.precioUnitario.toFixed(4)}</td>
-            <td>${producto.unidadMedida || '-'}</td>
+            <td>${producto.cantidad}</td>
             <td>
                 ${botones}
             </td>
@@ -104,5 +106,36 @@ async function eliminarProducto(id) {
     } catch (error) {
         console.error('Error:', error);
         alert('Error de conexión');
+    }
+
+    function editarProducto(id) {
+        window.location.href = `/crear_producto.html?id=${id}`;
+    }
+}
+
+async function descargarReporte() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/reportes/productos', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'productos.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } else {
+            alert('Error al descargar el reporte');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión al descargar reporte');
     }
 }

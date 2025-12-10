@@ -63,10 +63,11 @@ function renderizarTabla(clientes) {
         const rol = localStorage.getItem('rol');
         let botones = `<a href="/clientes/editar/${cliente.id}" class="btn btn-sm btn-info" style="margin-right: 5px;">Editar</a>`;
 
-        if (rol === 'ADMIN') {
+        if (rol === 'ADMINISTRADOR') {
             botones += `<button class="btn btn-sm btn-danger" onclick="eliminarCliente(${cliente.id})">Eliminar</button>`;
         }
 
+        const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${cliente.id}</td>
             <td>${cliente.identificacion}</td>
@@ -104,5 +105,32 @@ async function eliminarCliente(id) {
     } catch (error) {
         console.error('Error:', error);
         alert('Error de conexión');
+    }
+}
+
+async function descargarReporte() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/reportes/clientes', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'clientes.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } else {
+            alert('Error al descargar el reporte');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión al descargar reporte');
     }
 }

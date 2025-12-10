@@ -16,9 +16,6 @@ public class Producto extends EntidadAuditable {
     @Column(name = "codigo_principal", nullable = false, length = 50, unique = true)
     private String codigoPrincipal;
 
-    @Column(name = "codigo_auxiliar", length = 50)
-    private String codigoAuxiliar;
-
     @jakarta.validation.constraints.NotBlank(message = "La descripción es obligatoria")
     @Column(nullable = false, length = 200)
     private String descripcion;
@@ -28,8 +25,10 @@ public class Producto extends EntidadAuditable {
     @Column(name = "precio_unitario", nullable = false, precision = 10, scale = 4)
     private BigDecimal precioUnitario;
 
-    @Column(name = "unidad_medida", length = 10)
-    private String unidadMedida; // UND, KG, LT, etc.
+    @jakarta.validation.constraints.NotNull(message = "La cantidad es obligatoria")
+    @jakarta.validation.constraints.PositiveOrZero(message = "La cantidad no puede ser negativa")
+    @Column(nullable = false, columnDefinition = "integer default 0")
+    private Integer cantidad = 0;
 
     @Column(nullable = false, columnDefinition = "boolean default true")
     private Boolean activo = true;
@@ -42,14 +41,6 @@ public class Producto extends EntidadAuditable {
 
     public void setCodigoPrincipal(String codigoPrincipal) {
         this.codigoPrincipal = codigoPrincipal;
-    }
-
-    public String getCodigoAuxiliar() {
-        return codigoAuxiliar;
-    }
-
-    public void setCodigoAuxiliar(String codigoAuxiliar) {
-        this.codigoAuxiliar = codigoAuxiliar;
     }
 
     public String getDescripcion() {
@@ -68,12 +59,12 @@ public class Producto extends EntidadAuditable {
         this.precioUnitario = precioUnitario;
     }
 
-    public String getUnidadMedida() {
-        return unidadMedida;
+    public Integer getCantidad() {
+        return cantidad;
     }
 
-    public void setUnidadMedida(String unidadMedida) {
-        this.unidadMedida = unidadMedida;
+    public void setCantidad(Integer cantidad) {
+        this.cantidad = cantidad;
     }
 
     public Boolean getActivo() {

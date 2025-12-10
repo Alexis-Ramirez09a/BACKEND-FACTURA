@@ -45,6 +45,7 @@ public class FacturaEmisionServicio {
         private final FormaPagoServicio formaPagoServicio;
         private final SecuencialDocumentoServicio secuencialDocumentoServicio;
         private final FacturaServicio facturaServicio;
+        private final com.factura.facturacion.servicios.sri.SriEnvioServicio sriEnvioServicio;
 
         public FacturaEmisionServicio(EmpresaServicio empresaServicio,
                         EstablecimientoServicio establecimientoServicio,
@@ -54,7 +55,8 @@ public class FacturaEmisionServicio {
                         ProductoImpuestoServicio productoImpuestoServicio,
                         FormaPagoServicio formaPagoServicio,
                         SecuencialDocumentoServicio secuencialDocumentoServicio,
-                        FacturaServicio facturaServicio) {
+                        FacturaServicio facturaServicio,
+                        com.factura.facturacion.servicios.sri.SriEnvioServicio sriEnvioServicio) {
                 this.empresaServicio = empresaServicio;
                 this.establecimientoServicio = establecimientoServicio;
                 this.puntoEmisionServicio = puntoEmisionServicio;
@@ -64,6 +66,7 @@ public class FacturaEmisionServicio {
                 this.formaPagoServicio = formaPagoServicio;
                 this.secuencialDocumentoServicio = secuencialDocumentoServicio;
                 this.facturaServicio = facturaServicio;
+                this.sriEnvioServicio = sriEnvioServicio;
         }
 
         @Transactional
@@ -126,7 +129,8 @@ public class FacturaEmisionServicio {
                         detalle.setFactura(factura);
                         detalle.setProducto(producto);
                         detalle.setCodigoPrincipal(producto.getCodigoPrincipal());
-                        detalle.setCodigoAuxiliar(producto.getCodigoAuxiliar());
+                        // detalle.setCodigoAuxiliar(producto.getCodigoAuxiliar()); // Removed from
+                        // product
                         detalle.setDescripcion(detDto.getDescripcion() != null ? detDto.getDescripcion()
                                         : producto.getDescripcion());
 
@@ -139,6 +143,16 @@ public class FacturaEmisionServicio {
                         detalle.setCantidad(cantidad);
                         detalle.setPrecioUnitario(precioUnitario);
                         detalle.setDescuento(descuento);
+
+                        // --- CONTROL Y REDUCCIÓN DE STOCK ---
+                        int cantidadVenta = cantidad.intValue();
+                        if (producto.getCantidad() < cantidadVenta) {
+                                throw new RuntimeException("Stock insuficiente para: " + producto.getDescripcion()
+                                                + ". Disponible: " + producto.getCantidad());
+                        }
+                        producto.setCantidad(producto.getCantidad() - cantidadVenta);
+                        productoServicio.guardar(producto);
+                        // ------------------------------------
 
                         BigDecimal precioTotalSinImp = cantidad.multiply(precioUnitario)
                                         .subtract(descuento != null ? descuento : BigDecimal.ZERO)
@@ -257,6 +271,17 @@ public class FacturaEmisionServicio {
                 factura.setEstado("PENDIENTE");
 
                 // 8. Guardar factura completa
-                return facturaServicio.guardar(factura);
+                Factura facturaGuardada = facturaServicio.guardar(factura);
+
+                try {
+                        // Solo generamos el XML (el método enviar ya no cambia estado a 'RECIBIDA')
+                        sriEnvioServicio.enviar(facturaGuardada);
+                        // sriEnvioServicio.autorizar(facturaGuardada); // ELIMINADO para evitar
+                        // auto-aprobación
+                } catch (Exception e) {
+                        System.out.println("Error generando XML: " + e.getMessage());
+                }
+
+                return facturaGuardada;
         }
 }

@@ -2,8 +2,12 @@ package com.factura.facturacion.servicios;
 
 import com.factura.facturacion.entidades.factura.Factura;
 import com.factura.facturacion.repositorios.FacturaRepositorio;
+import com.factura.facturacion.servicios.sri.SriXmlBuilderServicio;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.Random;
 
@@ -11,43 +15,56 @@ import java.util.Random;
 public class SriServicio {
 
     private final FacturaRepositorio facturaRepositorio;
+    private final SriXmlBuilderServicio xmlBuilder;
     private final Random random = new Random();
 
-    public SriServicio(FacturaRepositorio facturaRepositorio) {
+    public SriServicio(FacturaRepositorio facturaRepositorio, SriXmlBuilderServicio xmlBuilder) {
         this.facturaRepositorio = facturaRepositorio;
+        this.xmlBuilder = xmlBuilder;
     }
 
     public Factura enviarFactura(Long facturaId) throws InterruptedException {
         Factura factura = facturaRepositorio.findById(facturaId)
                 .orElseThrow(() -> new RuntimeException("Factura no encontrada"));
 
-        // Simular generación de XML
-        String xml = generarXmlSimulado(factura);
-        System.out.println(">> ENVIANDO XML AL SRI: " + xml);
+        try {
+            System.out.println(">> INICIANDO SIMULACION DE ENVIO AL SRI: ");
 
-        // Simular tiempo de espera (1-3 seg)
-        Thread.sleep(1000 + random.nextInt(2000));
+            // 1. Generar XML usando el servicio
+            String xmlContent = xmlBuilder.construirXmlFactura(factura);
 
-        // Simular respuesta
-        boolean autorizado = random.nextBoolean(); // 50/50 chance
-        // O forzar autorizado para pruebas más amigables:
-        // boolean autorizado = true;
+            // 2. Definir nombre y ruta del archivo
+            String nombreArchivo = factura.getSecuencial() + ".xml";
+            // Si la factura tiene clave de acceso, es mejor usarla:
+            if (factura.getClaveAcceso() != null) {
+                nombreArchivo = factura.getClaveAcceso() + ".xml";
+            }
 
-        if (autorizado) {
+            Path rutaCarpeta = Paths.get("C:/Factura/xmls/");
+            if (!Files.exists(rutaCarpeta)) {
+                Files.createDirectories(rutaCarpeta);
+            }
+
+            Path rutaArchivo = rutaCarpeta.resolve(nombreArchivo);
+
+            // 3. Guardar el archivo
+            Files.writeString(rutaArchivo, xmlContent);
+            System.out.println(">> DOC ELECTRÓNICO GENERADO: " + rutaArchivo.toString());
+
+            // 4. Simular respuesta positiva del SRI
+            Thread.sleep(1000); // Esperar un segundo
+
             factura.setEstado("AUTORIZADA");
             factura.setFechaAutorizacion(LocalDateTime.now());
-            System.out.println(">> FACTURA " + factura.getSecuencial() + " AUTORIZADA");
-        } else {
+            // factura.setRutaXml(rutaArchivo.toString()); // Descomentar si tienes este
+            // campo
+
+        } catch (Exception e) {
+            e.printStackTrace();
             factura.setEstado("RECHAZADA");
-            factura.setObservacion("Error simulado por SRI: RUC inválido o servicio no disponible");
-            System.out.println(">> FACTURA " + factura.getSecuencial() + " RECHAZADA");
+            factura.setObservacion("Error simulado: " + e.getMessage());
         }
 
         return facturaRepositorio.save(factura);
-    }
-
-    private String generarXmlSimulado(Factura factura) {
-        return "<factura><infoTributaria><secuencial>" + factura.getSecuencial()
-                + "</secuencial></infoTributaria></factura>";
     }
 }

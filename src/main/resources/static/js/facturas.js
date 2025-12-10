@@ -50,8 +50,8 @@ function renderizarTabla(facturas) {
         tr.innerHTML = `
             <td>${f.id}</td>
             <td>${f.fechaEmision}</td>
-            <td>${f.cliente ? f.cliente.razonSocial : 'Consumidor Final'}</td>
-            <td>$${f.totalImporte ? f.totalImporte.toFixed(2) : '0.00'}</td>
+            <td>${f.cliente ? f.cliente.nombreRazonSocial : 'Consumidor Final'}</td>
+            <td>$${f.importeTotal ? f.importeTotal.toFixed(2) : '0.00'}</td>
             <td><span class="badge ${f.estado}">${f.estado}</span></td>
             <td>
                 <button onclick="descargarPdf(${f.id})" class="btn-link">PDF</button>
@@ -85,3 +85,32 @@ async function descargarPdf(id) {
         alert("Error de conexión");
     }
 }
+
+async function descargarReporteGeneral() {
+    const token = localStorage.getItem("token");
+    try {
+        const response = await fetch("/api/reportes/facturas", {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "reporte_general_facturas.pdf";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } else {
+            alert("Error al descargar reporte general");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error de conexión");
+    }
+}
+
+// function copiarRutaXml... (eliminado por petición)

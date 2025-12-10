@@ -33,14 +33,16 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         // Permitir estáticos y vistas públicas
-                        .requestMatchers("/", "/login", "/facturas", "/facturas/**", "/nueva_factura", "/clientes",
-                                "/productos")
-                        .permitAll()
+                        .requestMatchers("/", "/login").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/img/**").permitAll()
 
                         // Endpoints de API públicos
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+
+                        // Vistas privadas (Solo Admin y Vendedor)
+                        .requestMatchers("/facturas/**", "/nueva_factura", "/clientes/**", "/productos/**")
+                        .hasAnyRole("ADMINISTRADOR", "VENDEDOR")
 
                         // Todo lo demás requiere autenticación
                         .anyRequest().authenticated())

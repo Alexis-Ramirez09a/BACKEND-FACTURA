@@ -21,12 +21,15 @@ public class ReporteServicio {
     private final ClienteRepositorio clienteRepositorio;
     private final ProductoRepositorio productoRepositorio;
     private final FacturaRepositorio facturaRepositorio;
+    private final com.factura.facturacion.repositorios.EmpresaRepositorio empresaRepositorio;
 
     public ReporteServicio(ClienteRepositorio clienteRepositorio, ProductoRepositorio productoRepositorio,
-            FacturaRepositorio facturaRepositorio) {
+            FacturaRepositorio facturaRepositorio,
+            com.factura.facturacion.repositorios.EmpresaRepositorio empresaRepositorio) {
         this.clienteRepositorio = clienteRepositorio;
         this.productoRepositorio = productoRepositorio;
         this.facturaRepositorio = facturaRepositorio;
+        this.empresaRepositorio = empresaRepositorio;
     }
 
     public byte[] generarReporteClientes() throws DocumentException {
@@ -36,11 +39,7 @@ public class ReporteServicio {
         PdfWriter.getInstance(document, out);
         document.open();
 
-        Font fontHeader = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
-        Paragraph titulo = new Paragraph("Reporte de Clientes", fontHeader);
-        titulo.setAlignment(Element.ALIGN_CENTER);
-        document.add(titulo);
-        document.add(new Paragraph("\n"));
+        addCompanyHeader(document, "Reporte de Clientes");
 
         PdfPTable table = new PdfPTable(4);
         table.setWidthPercentage(100);
@@ -70,11 +69,7 @@ public class ReporteServicio {
         PdfWriter.getInstance(document, out);
         document.open();
 
-        Font fontHeader = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
-        Paragraph titulo = new Paragraph("Reporte de Productos", fontHeader);
-        titulo.setAlignment(Element.ALIGN_CENTER);
-        document.add(titulo);
-        document.add(new Paragraph("\n"));
+        addCompanyHeader(document, "Reporte de Productos");
 
         PdfPTable table = new PdfPTable(3);
         table.setWidthPercentage(100);
@@ -102,11 +97,7 @@ public class ReporteServicio {
         PdfWriter.getInstance(document, out);
         document.open();
 
-        Font fontHeader = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
-        Paragraph titulo = new Paragraph("Reporte de Facturas", fontHeader);
-        titulo.setAlignment(Element.ALIGN_CENTER);
-        document.add(titulo);
-        document.add(new Paragraph("\n"));
+        addCompanyHeader(document, "Reporte de Facturas");
 
         PdfPTable table = new PdfPTable(4);
         table.setWidthPercentage(100);
@@ -116,12 +107,26 @@ public class ReporteServicio {
         table.addCell(getHeaderCell("Total"));
 
         List<Factura> facturas = facturaRepositorio.findAll();
+        java.math.BigDecimal totalGeneral = java.math.BigDecimal.ZERO;
+
         for (Factura factura : facturas) {
             table.addCell(factura.getSecuencial());
             table.addCell(factura.getFechaEmision().toString());
             table.addCell(factura.getRazonSocialComprador());
             table.addCell(factura.getImporteTotal().toString());
+            totalGeneral = totalGeneral.add(factura.getImporteTotal());
         }
+
+        // Add Total Row
+        PdfPCell cellTotalLabel = new PdfPCell(
+                new Phrase("TOTAL GENERAL", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+        cellTotalLabel.setColspan(3);
+        cellTotalLabel.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        table.addCell(cellTotalLabel);
+
+        PdfPCell cellTotalValue = new PdfPCell(
+                new Phrase(totalGeneral.toString(), FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+        table.addCell(cellTotalValue);
 
         document.add(table);
         document.close();
@@ -134,5 +139,27 @@ public class ReporteServicio {
         PdfPCell cell = new PdfPCell(new Phrase(text, font));
         cell.setHorizontalAlignment(Element.ALIGN_CENTER);
         return cell;
+    }
+
+    private void addCompanyHeader(Document document, String title) throws DocumentException {
+        com.factura.facturacion.entidades.empresa.Empresa empresa = empresaRepositorio.findAll().stream().findFirst()
+                .orElse(null);
+
+        if (empresa != null) {
+            Font fontEmpresa = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14);
+            Paragraph pEmpresa = new Paragraph(empresa.getRazonSocial(), fontEmpresa);
+            pEmpresa.setAlignment(Element.ALIGN_CENTER);
+            document.add(pEmpresa);
+
+            Paragraph pRuc = new Paragraph("RUC: " + empresa.getRuc());
+            pRuc.setAlignment(Element.ALIGN_CENTER);
+            document.add(pRuc);
+        }
+
+        Font fontHeader = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
+        Paragraph pTitulo = new Paragraph(title, fontHeader);
+        pTitulo.setAlignment(Element.ALIGN_CENTER);
+        document.add(pTitulo);
+        document.add(new Paragraph("\n"));
     }
 }

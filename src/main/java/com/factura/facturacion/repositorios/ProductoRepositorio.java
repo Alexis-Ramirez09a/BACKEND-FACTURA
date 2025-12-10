@@ -14,17 +14,14 @@ public interface ProductoRepositorio extends JpaRepository<Producto, Long> {
     // Buscar por código principal
     Optional<Producto> findByCodigoPrincipal(String codigoPrincipal);
 
-    // Buscar por código auxiliar
-    Optional<Producto> findByCodigoAuxiliar(String codigoAuxiliar);
-
     // Buscar productos por descripción parcial (para buscador)
     List<Producto> findByDescripcionContainingIgnoreCase(String texto);
 
     // Buscar todos los productos activos
     List<Producto> findByActivoTrue();
 }
-//Permite buscar un producto por su código principal
-//Permite buscar un producto por su código auxiliar
-//Permite buscar productos cuya descripción contenga un texto específico
-//Permite buscar todos los productos que están activos
-//Maneja CRUD automático
+// Permite buscar un producto por su código principal
+// Permite buscar un producto por su código auxiliar
+// Permite buscar productos cuya descripción contenga un texto específico
+// Permite buscar todos los productos que están activos
+// Maneja CRUD automático

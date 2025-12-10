@@ -29,10 +29,6 @@ public class ProductoServicio {
         return productoRepositorio.findByCodigoPrincipal(codigo);
     }
 
-    public Optional<Producto> buscarPorCodigoAuxiliar(String codigo) {
-        return productoRepositorio.findByCodigoAuxiliar(codigo);
-    }
-
     public List<Producto> buscarPorDescripcion(String texto) {
         return productoRepositorio.findByDescripcionContainingIgnoreCase(texto);
     }
