@@ -31,21 +31,21 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         // 1. Crear Usuario Admin
         // 1. Crear Usuario Admin
-        if (usuarioRepositorio.findByUsername("andres").isEmpty()) {
+        if (usuarioRepositorio.findByUsername("alexis").isEmpty()) {
             Usuario admin = new Usuario();
-            admin.setUsername("andres");
-            admin.setPassword(passwordEncoder.encode("2005"));
+            admin.setUsername("alexis");
+            admin.setPassword(passwordEncoder.encode("0991"));
             admin.setRol("ADMINISTRADOR");
             admin.setActivo(true);
             usuarioRepositorio.save(admin);
-            System.out.println(">> USUARIO 'andres' CREADO CON CLAVE '2005'");
+            System.out.println(">> USUARIO 'alexis' CREADO CON CLAVE '0991'");
         } else {
             // Update role if exists (migration)
-            Usuario admin = usuarioRepositorio.findByUsername("andres").get(0);
+            Usuario admin = usuarioRepositorio.findByUsername("alexis").get(0);
             if (!"ADMINISTRADOR".equals(admin.getRol())) {
                 admin.setRol("ADMINISTRADOR");
                 usuarioRepositorio.save(admin);
-                System.out.println(">> ROL DE 'andres' ACTUALIZADO A 'ADMINISTRADOR'");
+                System.out.println(">> ROL DE 'alexis' ACTUALIZADO A 'ADMINISTRADOR'");
             }
         }
 
