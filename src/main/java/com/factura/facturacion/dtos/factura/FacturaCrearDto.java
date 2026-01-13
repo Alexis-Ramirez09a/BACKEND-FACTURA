@@ -13,6 +13,11 @@ public class FacturaCrearDto {
     private String observacion;
     private String guiaRemision;
 
+    // Campos para adaptación Frontend (Simplificado)
+    private String formaPago;
+    private Integer tiempo;
+    private String plazo;
+
     private List<FacturaDetalleCrearDto> detalles;
     private List<FacturaPagoCrearDto> pagos;
 
@@ -86,5 +91,29 @@ public class FacturaCrearDto {
 
     public void setPagos(List<FacturaPagoCrearDto> pagos) {
         this.pagos = pagos;
+    }
+
+    public String getFormaPago() {
+        return formaPago;
+    }
+
+    public void setFormaPago(String formaPago) {
+        this.formaPago = formaPago;
+    }
+
+    public Integer getTiempo() {
+        return tiempo;
+    }
+
+    public void setTiempo(Integer tiempo) {
+        this.tiempo = tiempo;
+    }
+
+    public String getPlazo() {
+        return plazo;
+    }
+
+    public void setPlazo(String plazo) {
+        this.plazo = plazo;
     }
 }

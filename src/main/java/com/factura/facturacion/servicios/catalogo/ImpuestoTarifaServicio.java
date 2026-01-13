@@ -31,7 +31,7 @@ public class ImpuestoTarifaServicio {
     }
 
     public Optional<ImpuestoTarifa> buscarPorImpuestoYCodigo(Impuesto impuesto, String codigoTarifa) {
-        return impuestoTarifaRepositorio.findByImpuestoAndCodigoTarifa(impuesto, codigoTarifa);
+        return impuestoTarifaRepositorio.findByCodigoTarifaAndImpuesto(codigoTarifa, impuesto);
     }
 
     public ImpuestoTarifa guardar(ImpuestoTarifa tarifa) {

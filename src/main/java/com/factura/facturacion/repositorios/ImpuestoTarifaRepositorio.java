@@ -16,8 +16,11 @@ public interface ImpuestoTarifaRepositorio extends JpaRepository<ImpuestoTarifa,
     List<ImpuestoTarifa> findByImpuesto(Impuesto impuesto);
 
     // Buscar una tarifa específica por códigoTarifa (ejemplo: 2 = IVA 12%)
-    Optional<ImpuestoTarifa> findByImpuestoAndCodigoTarifa(Impuesto impuesto, String codigoTarifa);
+    // Buscar una tarifa específica por códigoTarifa (ejemplo: 2 = IVA 12%) y
+    // Impuesto
+    Optional<ImpuestoTarifa> findByCodigoTarifaAndImpuesto(String codigoTarifa, Impuesto impuesto);
 }
-//Permite buscar todas las tarifas asociadas a un impuesto
-//Permite encontrar una tarifa específica de un impuesto por su código de tarifa
-//Maneja CRUD automático
+// Permite buscar todas las tarifas asociadas a un impuesto
+// Permite encontrar una tarifa específica de un impuesto por su código de
+// tarifa
+// Maneja CRUD automático

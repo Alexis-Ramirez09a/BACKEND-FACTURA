@@ -1,4 +1,4 @@
-package com.factura.facturacion.servicios.sri;
+package com.factura.facturacion.servicios.sri.firma;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -31,13 +31,14 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.w3c.dom.Document;
 
-@Service
-public class FirmaElectronicaServicio {
+@Component("firmaRealStrategy")
+public class FirmaElectronicaServicio implements FirmaStrategy {
 
-    public byte[] firmarXml(byte[] xmlBytes, String pathFirma, String claveFirma) throws Exception {
+    @Override
+    public byte[] firmar(byte[] xmlBytes, String pathFirma, String claveFirma) throws Exception {
         // Cargar KeyStore
         KeyStore ks = KeyStore.getInstance("PKCS12");
         try (InputStream is = new FileInputStream(pathFirma)) {

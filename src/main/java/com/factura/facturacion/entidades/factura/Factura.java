@@ -385,4 +385,12 @@ public class Factura extends EntidadAuditable {
         this.pagos = pagos;
     }
 
+    // Adaptación para Frontend (JSON)
+    public BigDecimal getTotal() {
+        return this.importeTotal;
+    }
+
+    public String getClienteNombre() {
+        return this.cliente != null ? this.cliente.getNombreRazonSocial() : "";
+    }
 }

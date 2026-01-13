@@ -72,14 +72,39 @@ public class FacturaEmisionServicio {
         @Transactional
         public Factura emitirFactura(FacturaCrearDto dto) {
                 // 1. Cargar entidades base
-                Empresa empresa = empresaServicio.buscarPorId(dto.getEmpresaId())
-                                .orElseThrow(() -> new RuntimeException("Empresa no encontrada"));
+                Empresa empresa;
+                if (dto.getEmpresaId() != null) {
+                        empresa = empresaServicio.buscarPorId(dto.getEmpresaId())
+                                        .orElseThrow(() -> new RuntimeException("Empresa no encontrada"));
+                } else {
+                        // Default: Primera empresa encontrada
+                        empresa = empresaServicio.listarTodas().stream().findFirst()
+                                        .orElseThrow(() -> new RuntimeException(
+                                                        "No existe ninguna empresa configurada"));
+                }
 
-                Establecimiento establecimiento = establecimientoServicio.buscarPorId(dto.getEstablecimientoId())
-                                .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
+                Establecimiento establecimiento;
+                if (dto.getEstablecimientoId() != null) {
+                        establecimiento = establecimientoServicio.buscarPorId(dto.getEstablecimientoId())
+                                        .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
+                } else {
+                        // Default: Primer establecimiento de la empresa
+                        establecimiento = establecimientoServicio.listarPorEmpresa(empresa).stream().findFirst()
+                                        .orElseThrow(() -> new RuntimeException(
+                                                        "No hay establecimientos para la empresa"));
+                }
 
-                PuntoEmision puntoEmision = puntoEmisionServicio.buscarPorId(dto.getPuntoEmisionId())
-                                .orElseThrow(() -> new RuntimeException("Punto de emisión no encontrado"));
+                PuntoEmision puntoEmision;
+                if (dto.getPuntoEmisionId() != null) {
+                        puntoEmision = puntoEmisionServicio.buscarPorId(dto.getPuntoEmisionId())
+                                        .orElseThrow(() -> new RuntimeException("Punto de emisión no encontrado"));
+                } else {
+                        // Default: Primer punto de emision del establecimiento
+                        puntoEmision = puntoEmisionServicio.listarPorEstablecimiento(establecimiento).stream()
+                                        .findFirst()
+                                        .orElseThrow(() -> new RuntimeException(
+                                                        "No hay puntos de emisión para el establecimiento"));
+                }
 
                 Cliente cliente = clienteServicio.buscarPorId(dto.getClienteId())
                                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
@@ -208,10 +233,29 @@ public class FacturaEmisionServicio {
                         factura.getDetalles().add(detalle);
                 }
 
-                // 5. Procesar pagos
-                BigDecimal totalPagos = BigDecimal.ZERO;
-                if (dto.getPagos() != null) {
+                // 6. Totales de factura
+                factura.setTotalSinImpuestos(totalSinImpuestos);
+                factura.setTotalDescuento(totalDescuento);
+                factura.setSubtotalIva12(subtotalIva12);
+                factura.setSubtotalIva0(subtotalIva0);
+                factura.setSubtotalNoObjetoIva(subtotalNoObjeto);
+                factura.setSubtotalExentoIva(subtotalExento);
+                factura.setValorIva(valorIva);
+                factura.setValorIce(BigDecimal.ZERO);
+                factura.setValorIrbpnr(BigDecimal.ZERO);
+
+                BigDecimal importeTotal = totalSinImpuestos
+                                .add(factura.getValorIva())
+                                .add(factura.getValorIce())
+                                .add(factura.getValorIrbpnr())
+                                .setScale(2, RoundingMode.HALF_UP);
+
+                factura.setImporteTotal(importeTotal);
+
+                // AHORA Procesar pagos (Moved Logic)
+                if (dto.getPagos() != null && !dto.getPagos().isEmpty()) {
                         for (FacturaPagoCrearDto pagoDto : dto.getPagos()) {
+                                // ... same logic loop ...
                                 FormaPago formaPago = formaPagoServicio
                                                 .buscarPorCodigoSri(pagoDto.getCodigoFormaPagoSri())
                                                 .orElseThrow(() -> new RuntimeException("Forma de pago no encontrada: "
@@ -224,30 +268,27 @@ public class FacturaEmisionServicio {
                                 pago.setPlazo(pagoDto.getPlazo() != null ? pagoDto.getPlazo() : 0);
                                 pago.setUnidadTiempo(pagoDto.getUnidadTiempo());
 
-                                totalPagos = totalPagos.add(pagoDto.getTotal());
                                 factura.getPagos().add(pago);
                         }
+                } else {
+                        // Default Payment Logic
+                        FacturaPago pago = new FacturaPago();
+                        pago.setFactura(factura);
+
+                        String codigoFormaPago = dto.getFormaPago() != null ? dto.getFormaPago() : "01";
+                        FormaPago formaPago = formaPagoServicio.buscarPorCodigoSri(codigoFormaPago)
+                                        .orElse(formaPagoServicio.buscarPorCodigoSri("01").orElse(null)); // Fallback a
+                                                                                                          // efectivo
+
+                        if (formaPago == null)
+                                throw new RuntimeException("No se encontro forma de pago");
+
+                        pago.setFormaPago(formaPago);
+                        pago.setTotal(importeTotal); // Total exacto
+                        pago.setPlazo(dto.getTiempo());
+                        pago.setUnidadTiempo(dto.getPlazo()); // DIAS/MESES
+                        factura.getPagos().add(pago);
                 }
-
-                // 6. Totales de factura
-                factura.setTotalSinImpuestos(totalSinImpuestos);
-                factura.setTotalDescuento(totalDescuento);
-                factura.setSubtotalIva12(subtotalIva12);
-                factura.setSubtotalIva0(subtotalIva0);
-                factura.setSubtotalNoObjetoIva(subtotalNoObjeto);
-                factura.setSubtotalExentoIva(subtotalExento);
-                factura.setValorIva(valorIva);
-                // Para simplificar ponemos ICE e IRBPNR en 0
-                factura.setValorIce(BigDecimal.ZERO);
-                factura.setValorIrbpnr(BigDecimal.ZERO);
-
-                BigDecimal importeTotal = totalSinImpuestos
-                                .add(factura.getValorIva())
-                                .add(factura.getValorIce())
-                                .add(factura.getValorIrbpnr())
-                                .setScale(2, RoundingMode.HALF_UP);
-
-                factura.setImporteTotal(importeTotal);
 
                 // 7. Generar clave de acceso
                 String serie = factura.getCodigoEstablecimiento() + factura.getCodigoPuntoEmision();

@@ -23,11 +23,9 @@ public class SriControlador {
         try {
             Factura factura = sriServicio.enviarFactura(facturaId);
             return ResponseEntity.ok(factura);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return ResponseEntity.internalServerError().build();
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
     }
+
 }
