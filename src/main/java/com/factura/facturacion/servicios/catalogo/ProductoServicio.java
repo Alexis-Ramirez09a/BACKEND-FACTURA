@@ -30,7 +30,9 @@ public class ProductoServicio {
     }
 
     public List<Producto> buscarPorDescripcion(String texto) {
-        return productoRepositorio.findByDescripcionContainingIgnoreCase(texto);
+        // Ahora busca por descripción O código principal
+        return productoRepositorio.findByDescripcionContainingIgnoreCaseOrCodigoPrincipalContainingIgnoreCase(texto,
+                texto);
     }
 
     public List<Producto> listarActivos() {

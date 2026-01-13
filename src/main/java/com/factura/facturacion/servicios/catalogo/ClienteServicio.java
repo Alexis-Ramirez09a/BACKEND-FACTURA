@@ -30,7 +30,9 @@ public class ClienteServicio {
     }
 
     public List<Cliente> buscarPorNombre(String texto) {
-        return clienteRepositorio.findByNombreRazonSocialContainingIgnoreCase(texto);
+        // Ahora busca por nombre O identificación
+        return clienteRepositorio.findByNombreRazonSocialContainingIgnoreCaseOrIdentificacionContainingIgnoreCase(texto,
+                texto);
     }
 
     public List<Cliente> buscarPorIdentificacionParcial(String texto) {

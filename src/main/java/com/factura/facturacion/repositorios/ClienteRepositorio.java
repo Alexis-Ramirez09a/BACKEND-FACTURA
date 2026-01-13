@@ -17,6 +17,10 @@ public interface ClienteRepositorio extends JpaRepository<Cliente, Long> {
     // Buscar clientes por nombre que contenga un texto (búsqueda parcial)
     List<Cliente> findByNombreRazonSocialContainingIgnoreCase(String texto);
 
+    // Buscar por nombre O identificación (Búsqueda General)
+    List<Cliente> findByNombreRazonSocialContainingIgnoreCaseOrIdentificacionContainingIgnoreCase(String nombre,
+            String identificacion);
+
     // Buscar por identificación parcial
     List<Cliente> findByIdentificacionContaining(String identificacion);
 

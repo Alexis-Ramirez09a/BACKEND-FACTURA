@@ -38,7 +38,7 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                         // Endpoints protegidos por rol (ejemplo)
-                        .requestMatchers("/api/facturas/**", "/api/clientes/**", "/api/productos/**")
+                        .requestMatchers("/api/facturas/**", "/api/clientes/**", "/api/productos/**", "/api/sri/**")
                         .hasAnyRole("ADMINISTRADOR", "VENDEDOR")
 
                         // Todo lo demás requiere autenticación

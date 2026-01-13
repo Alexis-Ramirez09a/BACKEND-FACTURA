@@ -17,6 +17,10 @@ public interface ProductoRepositorio extends JpaRepository<Producto, Long> {
     // Buscar productos por descripción parcial (para buscador)
     List<Producto> findByDescripcionContainingIgnoreCase(String texto);
 
+    // Buscar por descripción O código principal (Búsqueda General)
+    List<Producto> findByDescripcionContainingIgnoreCaseOrCodigoPrincipalContainingIgnoreCase(String descripcion,
+            String codigo);
+
     // Buscar todos los productos activos
     List<Producto> findByActivoTrue();
 }
