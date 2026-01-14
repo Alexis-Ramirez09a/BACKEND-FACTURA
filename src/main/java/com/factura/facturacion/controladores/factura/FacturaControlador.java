@@ -34,8 +34,8 @@ public class FacturaControlador {
     private final FacturaEmisionServicio facturaEmisionServicio;
 
     public FacturaControlador(FacturaServicio facturaServicio,
-                              ClienteServicio clienteServicio,
-                              FacturaEmisionServicio facturaEmisionServicio) {
+            ClienteServicio clienteServicio,
+            FacturaEmisionServicio facturaEmisionServicio) {
         this.facturaServicio = facturaServicio;
         this.clienteServicio = clienteServicio;
         this.facturaEmisionServicio = facturaEmisionServicio;
@@ -60,8 +60,7 @@ public class FacturaControlador {
     public ResponseEntity<Factura> buscarPorNumero(
             @RequestParam("establecimiento") String establecimiento,
             @RequestParam("puntoEmision") String puntoEmision,
-            @RequestParam("secuencial") String secuencial
-    ) {
+            @RequestParam("secuencial") String secuencial) {
         return facturaServicio.buscarPorNumero(establecimiento, puntoEmision, secuencial)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -72,17 +71,16 @@ public class FacturaControlador {
     public ResponseEntity<List<Factura>> listarPorCliente(@PathVariable Long clienteId) {
         return clienteServicio.buscarPorId(clienteId)
                 .map(cliente -> ResponseEntity.ok(
-                        facturaServicio.listarPorCliente(cliente)
-                ))
+                        facturaServicio.listarPorCliente(cliente)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // Listar facturas por rango de fechas: /api/facturas/rango?desde=2024-01-01&hasta=2024-01-31
+    // Listar facturas por rango de fechas:
+    // /api/facturas/rango?desde=2024-01-01&hasta=2024-01-31
     @GetMapping("/rango")
     public ResponseEntity<List<Factura>> listarPorRangoFechas(
             @RequestParam("desde") String desdeStr,
-            @RequestParam("hasta") String hastaStr
-    ) {
+            @RequestParam("hasta") String hastaStr) {
         try {
             LocalDate desde = LocalDate.parse(desdeStr);
             LocalDate hasta = LocalDate.parse(hastaStr);
@@ -105,21 +103,21 @@ public class FacturaControlador {
     }
 
     // Emitir factura completa (usa DTO y toda la lógica de emisión)
-   @PostMapping("/emitir")
-public ResponseEntity<?> emitir(@RequestBody FacturaCrearDto dto) {
-    try {
-        Factura factura = facturaEmisionServicio.emitirFactura(dto);
-        return ResponseEntity.ok(factura);
-    } catch (RuntimeException e) {
-        // PARA DEPURAR: devolvemos el mensaje de error
-        return ResponseEntity.badRequest().body(e.getMessage());
+    @PostMapping("/emitir")
+    public ResponseEntity<?> emitir(@RequestBody FacturaCrearDto dto) {
+        try {
+            Factura factura = facturaEmisionServicio.emitirFactura(dto);
+            return ResponseEntity.ok(factura);
+        } catch (RuntimeException e) {
+            // PARA DEPURAR: devolvemos el mensaje de error
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
-}
 
     // Actualizar factura
     @PutMapping("/{id}")
     public ResponseEntity<Factura> actualizar(@PathVariable Long id,
-                                              @RequestBody Factura factura) {
+            @RequestBody Factura factura) {
         return facturaServicio.buscarPorId(id)
                 .map(existente -> {
                     factura.setId(id);
@@ -132,12 +130,21 @@ public ResponseEntity<?> emitir(@RequestBody FacturaCrearDto dto) {
     // Cambiar estado de la factura (por ejemplo ANULAR)
     @PatchMapping("/{id}/estado")
     public ResponseEntity<Factura> cambiarEstado(@PathVariable Long id,
-                                                 @RequestParam("estado") String estado) {
+            @RequestParam("estado") String estado) {
         return facturaServicio.buscarPorId(id)
                 .map(factura -> ResponseEntity.ok(
-                        facturaServicio.cambiarEstado(factura, estado)
-                ))
+                        facturaServicio.cambiarEstado(factura, estado)))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    // Endpoint específico para ANULAR
+    @PutMapping("/{id}/anular")
+    public ResponseEntity<Factura> anular(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(facturaServicio.anular(id));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     // Eliminar factura (no recomendable en producción, pero útil en desarrollo)
@@ -149,33 +156,34 @@ public ResponseEntity<?> emitir(@RequestBody FacturaCrearDto dto) {
         facturaServicio.eliminarPorId(id);
         return ResponseEntity.noContent().build();
     }
+
     @Autowired
-private FacturaReporteServicio reporteServicio;
+    private FacturaReporteServicio reporteServicio;
 
-@GetMapping("/{id}/pdf")
-public ResponseEntity<byte[]> descargar(@PathVariable Long id) throws Exception {
-    Factura f = facturaServicio.buscarPorId(id).orElseThrow();
-    byte[] pdf = reporteServicio.generarPdf(f);
+    @GetMapping("/{id}/pdf")
+    public ResponseEntity<byte[]> descargar(@PathVariable Long id) throws Exception {
+        Factura f = facturaServicio.buscarPorId(id).orElseThrow();
+        byte[] pdf = reporteServicio.generarPdf(f);
 
-    return ResponseEntity.ok()
-            .header("Content-Disposition", "attachment; filename=factura.pdf")
-            .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
-            .body(pdf);
-}
-@Autowired
-private SriEnvioServicio sriEnvioServicio;
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=factura.pdf")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
 
-@PostMapping("/{id}/enviar-sri")
-public String enviarSri(@PathVariable Long id) {
-    Factura f = facturaServicio.buscarPorId(id).orElseThrow();
-    return sriEnvioServicio.enviar(f);
-}
+    @Autowired
+    private SriEnvioServicio sriEnvioServicio;
 
-@PostMapping("/{id}/autorizar-sri")
-public String autorizarSri(@PathVariable Long id) {
-    Factura f = facturaServicio.buscarPorId(id).orElseThrow();
-    return sriEnvioServicio.autorizar(f);
-}
+    @PostMapping("/{id}/enviar-sri")
+    public ResponseEntity<Factura> enviarSri(@PathVariable Long id) {
+        Factura f = facturaServicio.buscarPorId(id).orElseThrow();
+        return ResponseEntity.ok(sriEnvioServicio.enviar(f));
+    }
 
+    @PostMapping("/{id}/autorizar-sri")
+    public String autorizarSri(@PathVariable Long id) {
+        Factura f = facturaServicio.buscarPorId(id).orElseThrow();
+        return sriEnvioServicio.autorizar(f);
+    }
 
 }

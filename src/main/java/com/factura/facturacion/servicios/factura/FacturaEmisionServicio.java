@@ -316,7 +316,7 @@ public class FacturaEmisionServicio {
 
                 try {
                         // Solo generamos el XML (el método enviar ya no cambia estado a 'RECIBIDA')
-                        sriEnvioServicio.enviar(facturaGuardada);
+                        // sriEnvioServicio.enviar(facturaGuardada); // REMOVE AUTO-SEND
                         // sriEnvioServicio.autorizar(facturaGuardada); // ELIMINADO para evitar
                         // auto-aprobación
                 } catch (Exception e) {

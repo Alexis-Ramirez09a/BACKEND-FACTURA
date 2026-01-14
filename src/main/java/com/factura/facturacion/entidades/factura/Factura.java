@@ -119,6 +119,9 @@ public class Factura extends EntidadAuditable {
     @Column(name = "fecha_autorizacion")
     private java.time.LocalDateTime fechaAutorizacion;
 
+    @Column(name = "mensaje_error", length = 500)
+    private String mensajeError;
+
     // Relación con detalles de la factura
     @OneToMany(mappedBy = "factura", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FacturaDetalle> detalles = new ArrayList<>();
@@ -367,6 +370,14 @@ public class Factura extends EntidadAuditable {
 
     public void setFechaAutorizacion(java.time.LocalDateTime fechaAutorizacion) {
         this.fechaAutorizacion = fechaAutorizacion;
+    }
+
+    public String getMensajeError() {
+        return mensajeError;
+    }
+
+    public void setMensajeError(String mensajeError) {
+        this.mensajeError = mensajeError;
     }
 
     public List<FacturaDetalle> getDetalles() {

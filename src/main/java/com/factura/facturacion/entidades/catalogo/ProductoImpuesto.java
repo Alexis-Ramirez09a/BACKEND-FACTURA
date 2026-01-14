@@ -14,6 +14,7 @@ public class ProductoImpuesto extends EntidadAuditable {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "producto_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Producto producto;
 
     @ManyToOne(optional = false)
@@ -49,4 +50,5 @@ public class ProductoImpuesto extends EntidadAuditable {
         this.prioridad = prioridad;
     }
 }
-//📌 ProductoImpuesto = relación entre un producto y su impuesto/tarifa aplicable.//
+// 📌 ProductoImpuesto = relación entre un producto y su impuesto/tarifa
+// aplicable.//

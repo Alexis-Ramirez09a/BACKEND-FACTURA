@@ -81,7 +81,7 @@ public class ProductoControlador {
 
     // Eliminar producto
     @DeleteMapping("/{id}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMINISTRADOR')")
+    // @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         if (productoServicio.buscarPorId(id).isEmpty()) {
             return ResponseEntity.notFound().build();

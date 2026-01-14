@@ -74,5 +74,27 @@ public class Producto extends EntidadAuditable {
     public void setActivo(Boolean activo) {
         this.activo = activo;
     }
+
+    @jakarta.persistence.Transient
+    private String iva; // "12", "0", etc. (Solo para transporte de datos)
+
+    @jakarta.persistence.OneToMany(mappedBy = "producto", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<ProductoImpuesto> impuestos = new java.util.ArrayList<>();
+
+    public String getIva() {
+        return iva;
+    }
+
+    public void setIva(String iva) {
+        this.iva = iva;
+    }
+
+    public java.util.List<ProductoImpuesto> getImpuestos() {
+        return impuestos;
+    }
+
+    public void setImpuestos(java.util.List<ProductoImpuesto> impuestos) {
+        this.impuestos = impuestos;
+    }
 }
 // 📌 Producto = bienes o servicios que la empresa vende y factura.//

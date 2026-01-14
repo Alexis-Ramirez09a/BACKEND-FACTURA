@@ -184,7 +184,7 @@ public class FacturaReporteServicio {
 
         addTotalRow(tTable, "Subtotal 12%", factura.getSubtotalIva12().toPlainString(), fontRegular, fontSubtitle);
         addTotalRow(tTable, "Subtotal 0%", factura.getSubtotalIva0().toPlainString(), fontRegular, fontSubtitle);
-        addTotalRow(tTable, "IVA", factura.getValorIva().toPlainString(), fontRegular, fontSubtitle);
+        addTotalRow(tTable, "IVA 12%", factura.getValorIva().toPlainString(), fontRegular, fontSubtitle);
         addTotalRow(tTable, "TOTAL", factura.getImporteTotal().toPlainString(), fontSubtitle, fontTitle); // Total más
                                                                                                           // grande
 

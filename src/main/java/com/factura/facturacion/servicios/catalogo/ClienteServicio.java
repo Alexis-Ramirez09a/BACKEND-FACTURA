@@ -48,9 +48,7 @@ public class ClienteServicio {
     }
 
     public void eliminarPorId(Long id) {
-        clienteRepositorio.findById(id).ifPresent(cliente -> {
-            cliente.setActivo(false);
-            clienteRepositorio.save(cliente);
-        });
+        // Hard delete requested by user
+        clienteRepositorio.deleteById(id);
     }
 }

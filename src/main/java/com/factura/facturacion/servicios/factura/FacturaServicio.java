@@ -33,14 +33,13 @@ public class FacturaServicio {
 
     // Buscar por número de factura (001-001-000000123)
     public Optional<Factura> buscarPorNumero(String codigoEstablecimiento,
-                                             String codigoPuntoEmision,
-                                             String secuencial) {
+            String codigoPuntoEmision,
+            String secuencial) {
         return facturaRepositorio
                 .findByCodigoEstablecimientoAndCodigoPuntoEmisionAndSecuencial(
                         codigoEstablecimiento,
                         codigoPuntoEmision,
-                        secuencial
-                );
+                        secuencial);
     }
 
     // Listar facturas por cliente
@@ -60,29 +59,29 @@ public class FacturaServicio {
 
     // Listar facturas por establecimiento y rango de fechas
     public List<Factura> listarPorEstablecimientoYRangoFechas(Establecimiento establecimiento,
-                                                              LocalDate desde,
-                                                              LocalDate hasta) {
+            LocalDate desde,
+            LocalDate hasta) {
         return facturaRepositorio
                 .findByEstablecimientoAndFechaEmisionBetween(establecimiento, desde, hasta);
     }
 
     // Listar por establecimiento, punto de emisión y rango de fechas
     public List<Factura> listarPorEstablecimientoPuntoYRangoFechas(Establecimiento establecimiento,
-                                                                   PuntoEmision puntoEmision,
-                                                                   LocalDate desde,
-                                                                   LocalDate hasta) {
+            PuntoEmision puntoEmision,
+            LocalDate desde,
+            LocalDate hasta) {
         return facturaRepositorio
                 .findByEstablecimientoAndPuntoEmisionAndFechaEmisionBetween(
                         establecimiento,
                         puntoEmision,
                         desde,
-                        hasta
-                );
+                        hasta);
     }
 
     // Guardar o actualizar una factura
     public Factura guardar(Factura factura) {
-        // Más adelante aquí podemos llamar a un método para calcular totales antes de guardar
+        // Más adelante aquí podemos llamar a un método para calcular totales antes de
+        // guardar
         return facturaRepositorio.save(factura);
     }
 
@@ -96,5 +95,16 @@ public class FacturaServicio {
     public void eliminarPorId(Long id) {
         facturaRepositorio.deleteById(id);
     }
+
+    // Anular factura por ID
+    public Factura anular(Long id) {
+        return facturaRepositorio.findById(id).map(f -> {
+            f.setEstado("ANULADA");
+            return facturaRepositorio.save(f);
+        }).orElseThrow(() -> new RuntimeException("Factura no encontrada"));
+    }
 }
-//gestiona la lógica de negocio relacionada con los secuenciales de documentos, como facturas, notas de crédito, etc. Proporciona métodos para buscar, generar y crear secuenciales asociados a establecimientos y puntos de emisión específicos.
+// gestiona la lógica de negocio relacionada con los secuenciales de documentos,
+// como facturas, notas de crédito, etc. Proporciona métodos para buscar,
+// generar y crear secuenciales asociados a establecimientos y puntos de emisión
+// específicos.

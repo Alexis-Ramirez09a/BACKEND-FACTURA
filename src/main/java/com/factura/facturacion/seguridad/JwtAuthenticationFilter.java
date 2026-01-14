@@ -62,9 +62,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             userEmail = jwtTokenProvider.extractUsername(finalJwt);
+            // System.out.println("JWT User: " + userEmail); // DEBUG
 
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+
                 if (jwtTokenProvider.isTokenValid(finalJwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
@@ -72,14 +74,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             userDetails.getAuthorities());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    // System.out.println("Autenticado exitoso: " + userEmail + " Roles: " +
+                    // userDetails.getAuthorities());
+                } else {
+                    System.out.println("Token inválido para usuario: " + userEmail);
                 }
             }
         } catch (Exception e) {
-            // Token inválido o expirado. No autenticamos, pero permitimos que la petición
-            // continúe (como anónimo)
-            // Esto es 'permission denied' solo si la ruta lo requiere.
-            // Opcional: limpiar la cookie si es inválida
             System.out.println("Error procesando JWT: " + e.getMessage());
+            e.printStackTrace(); // Ver stack trace completo
         }
 
         filterChain.doFilter(request, response);

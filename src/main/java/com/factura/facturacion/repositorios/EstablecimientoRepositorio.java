@@ -15,8 +15,11 @@ public interface EstablecimientoRepositorio extends JpaRepository<Establecimient
     List<Establecimiento> findByEmpresa(Empresa empresa);
 
     // Buscar por el código (001, 002, etc.)
+    // Buscar por el código (001, 002, etc.)
     Establecimiento findByCodigo(String codigo);
+
+    java.util.Optional<Establecimiento> findByCodigoAndEmpresa(String codigo, Empresa empresa);
 }
-//Permite buscar todos los establecimientos de una empresa
-//Permite encontrar un establecimiento por su código
-//Maneja CRUD automático
+// Permite buscar todos los establecimientos de una empresa
+// Permite encontrar un establecimiento por su código
+// Maneja CRUD automático

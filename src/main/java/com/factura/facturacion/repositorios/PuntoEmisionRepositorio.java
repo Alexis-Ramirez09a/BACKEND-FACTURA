@@ -15,8 +15,12 @@ public interface PuntoEmisionRepositorio extends JpaRepository<PuntoEmision, Lon
     List<PuntoEmision> findByEstablecimiento(Establecimiento establecimiento);
 
     // Buscar por código dentro de un establecimiento
+    // Buscar por código dentro de un establecimiento
     PuntoEmision findByEstablecimientoAndCodigo(Establecimiento establecimiento, String codigo);
+
+    java.util.Optional<PuntoEmision> findByCodigoAndEstablecimiento(String codigo, Establecimiento establecimiento);
 }
-//Permite buscar todos los puntos de emisión de un establecimiento
-//Permite encontrar un punto de emisión por su código dentro de un establecimiento
-//Maneja CRUD automático
+// Permite buscar todos los puntos de emisión de un establecimiento
+// Permite encontrar un punto de emisión por su código dentro de un
+// establecimiento
+// Maneja CRUD automático
