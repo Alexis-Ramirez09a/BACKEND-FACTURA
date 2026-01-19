@@ -49,6 +49,19 @@ public class ProductoServicio {
 
     @org.springframework.transaction.annotation.Transactional
     public Producto guardar(Producto producto) {
+        // Validación de duplicados (Código Principal o Descripción exacta)
+        Optional<Producto> existenteCodigo = productoRepositorio.findByCodigoPrincipal(producto.getCodigoPrincipal());
+        if (existenteCodigo.isPresent()) {
+            if (producto.getId() == null || !existenteCodigo.get().getId().equals(producto.getId())) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.CONFLICT,
+                        "El código " + producto.getCodigoPrincipal() + " ya está registrado.");
+            }
+        }
+
+        // Opcional: Validar nombre exacto también si se desea
+        // ...
+
         Producto guardado = productoRepositorio.save(producto);
 
         // Si viene el campo IVA, guardar la relación

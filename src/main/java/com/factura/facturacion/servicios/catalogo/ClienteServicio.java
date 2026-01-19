@@ -44,6 +44,19 @@ public class ClienteServicio {
     }
 
     public Cliente guardar(Cliente cliente) {
+        // Validar duplicado por identificación
+        Optional<Cliente> existente = clienteRepositorio.findByIdentificacion(cliente.getIdentificacion());
+
+        if (existente.isPresent()) {
+            // Si es nuevo (id null) O si es edición pero el ID no coincide con el
+            // encontrado
+            if (cliente.getId() == null || !existente.get().getId().equals(cliente.getId())) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.CONFLICT,
+                        "El cliente con identificación " + cliente.getIdentificacion() + " ya existe.");
+            }
+        }
+
         return clienteRepositorio.save(cliente);
     }
 
