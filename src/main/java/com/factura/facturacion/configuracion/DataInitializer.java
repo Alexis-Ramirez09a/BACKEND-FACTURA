@@ -45,7 +45,7 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         // ... (Previous logic for Admin, Empresa, etc.) ...
 
-        // 1. Crear Usuario Admin
+        // // 1. Crear Usuario Admin
         // if (usuarioRepositorio.findByUsername("alexis").isEmpty()) {
         // Usuario admin = new Usuario();
         // admin.setUsername("alexis");
