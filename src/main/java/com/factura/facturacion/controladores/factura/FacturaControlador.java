@@ -32,13 +32,16 @@ public class FacturaControlador {
     private final FacturaServicio facturaServicio;
     private final ClienteServicio clienteServicio;
     private final FacturaEmisionServicio facturaEmisionServicio;
+    private final com.factura.facturacion.servicios.sri.SriXmlBuilderServicio sriXmlBuilderServicio;
 
     public FacturaControlador(FacturaServicio facturaServicio,
             ClienteServicio clienteServicio,
-            FacturaEmisionServicio facturaEmisionServicio) {
+            FacturaEmisionServicio facturaEmisionServicio,
+            com.factura.facturacion.servicios.sri.SriXmlBuilderServicio sriXmlBuilderServicio) {
         this.facturaServicio = facturaServicio;
         this.clienteServicio = clienteServicio;
         this.facturaEmisionServicio = facturaEmisionServicio;
+        this.sriXmlBuilderServicio = sriXmlBuilderServicio;
     }
 
     // Listar todas las facturas
@@ -184,6 +187,13 @@ public class FacturaControlador {
     public String autorizarSri(@PathVariable Long id) {
         Factura f = facturaServicio.buscarPorId(id).orElseThrow();
         return sriEnvioServicio.autorizar(f);
+    }
+
+    @GetMapping(value = "/{id}/xml", produces = org.springframework.http.MediaType.APPLICATION_XML_VALUE)
+    public ResponseEntity<String> verXml(@PathVariable Long id) {
+        return facturaServicio.buscarPorId(id)
+                .map(f -> ResponseEntity.ok(sriXmlBuilderServicio.construirXmlFactura(f)))
+                .orElse(ResponseEntity.notFound().build());
     }
 
 }
