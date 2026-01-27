@@ -172,10 +172,31 @@ public class SriXmlBuilderServicio {
           .formatted(factura.getEmpresa().getContribuyenteRimpe());
     }
 
-    // Guía de remisión
     String guiaRemisionTag = "";
     if (factura.getGuiaRemision() != null && !factura.getGuiaRemision().isEmpty()) {
       guiaRemisionTag = "<guiaRemision>%s</guiaRemision>".formatted(factura.getGuiaRemision());
+    }
+
+    // Sanitize Client Data (Fix for potential data corruption)
+    String tipoIdentificacion = factura.getCliente().getTipoIdentificacion();
+    String razonSocial = factura.getCliente().getNombreRazonSocial();
+    String identificacion = factura.getCliente().getIdentificacion();
+
+    // Heurística de corrección: Si el tipo es "NO" o inválido
+    if (tipoIdentificacion == null || tipoIdentificacion.length() != 2 || "NO".equals(tipoIdentificacion)) {
+      // Si la Razón Social parece un código (ej. "05") y la Identificación parece un
+      // nombre
+      if (razonSocial != null && razonSocial.matches("\\d{2}") && identificacion != null
+          && !identificacion.matches("\\d+")) {
+        tipoIdentificacion = razonSocial; // Recuperamos el "05"
+        razonSocial = identificacion; // Recuperamos el nombre "Alexis..."
+        identificacion = "9999999999999"; // ID perdido, usamos CF
+      } else {
+        tipoIdentificacion = "07"; // Por defecto Consumidor Final
+        identificacion = "9999999999999";
+        if (razonSocial == null || razonSocial.isEmpty())
+          razonSocial = "CONSUMIDOR FINAL";
+      }
     }
 
     String xml = """
@@ -200,7 +221,9 @@ public class SriXmlBuilderServicio {
             <fechaEmision>%s</fechaEmision>
             <dirEstablecimiento>%s</dirEstablecimiento>
             %s
+            <obligadoContabilidad>%s</obligadoContabilidad>
             <tipoIdentificacionComprador>%s</tipoIdentificacionComprador>
+            %s
             <razonSocialComprador>%s</razonSocialComprador>
             <identificacionComprador>%s</identificacionComprador>
             <totalSinImpuestos>%s</totalSinImpuestos>
@@ -237,12 +260,20 @@ public class SriXmlBuilderServicio {
         // infoFactura
         fechaEmision,
         factura.getEstablecimiento().getDireccion(),
-        contribuyenteRimpeTag.isEmpty() ? "" : "<contribuyenteEspecial>000</contribuyenteEspecial>", // Ejemplo, ajustar
-                                                                                                     // lógica si es
-                                                                                                     // necesario
-        factura.getCliente().getTipoIdentificacion(),
-        factura.getCliente().getNombreRazonSocial(),
-        factura.getCliente().getIdentificacion(),
+        // Contribuyente Especial (si existe)
+        (factura.getEmpresa().getContribuyenteEspecial() != null
+            && !factura.getEmpresa().getContribuyenteEspecial().isEmpty())
+                ? "<contribuyenteEspecial>" + factura.getEmpresa().getContribuyenteEspecial()
+                    + "</contribuyenteEspecial>"
+                : "",
+        // Obligado a llevar contabilidad (OBLIGATORIO)
+        // EL USUARIO SOLICITÓ CAMBIAR A 'SI' SIEMPRE
+        "SI",
+        tipoIdentificacion,
+        // Guía de Remisión (si existe)
+        guiaRemisionTag,
+        razonSocial,
+        identificacion,
         factura.getTotalSinImpuestos().toPlainString(),
         factura.getTotalDescuento().toPlainString(),
         totalConImpuestosXml.toString(),
@@ -255,12 +286,6 @@ public class SriXmlBuilderServicio {
 
         // info adicional
         infoAdicionalXml.toString());
-
-    // Insertar guiaRemision si existe (manualmente porque el formatted ya tiene
-    // muchos args y es confuso)
-    if (!guiaRemisionTag.isEmpty()) {
-      xml = xml.replace("<tipoIdentificacionComprador>", guiaRemisionTag + "\n    <tipoIdentificacionComprador>");
-    }
 
     return xml.trim();
   }

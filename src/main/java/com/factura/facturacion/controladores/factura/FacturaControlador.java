@@ -178,9 +178,15 @@ public class FacturaControlador {
     private SriEnvioServicio sriEnvioServicio;
 
     @PostMapping("/{id}/enviar-sri")
-    public ResponseEntity<Factura> enviarSri(@PathVariable Long id) {
-        Factura f = facturaServicio.buscarPorId(id).orElseThrow();
-        return ResponseEntity.ok(sriEnvioServicio.enviar(f));
+    public ResponseEntity<?> enviarSri(@PathVariable Long id) {
+        try {
+            Factura f = facturaServicio.buscarPorId(id)
+                    .orElseThrow(() -> new RuntimeException("Factura no encontrada"));
+            return ResponseEntity.ok(sriEnvioServicio.enviar(f));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Error al enviar al SRI: " + e.getMessage());
+        }
     }
 
     @PostMapping("/{id}/autorizar-sri")

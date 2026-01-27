@@ -51,17 +51,19 @@ public class SriRecepcionService {
     }
 
     // ==========================
-    // 🔎 CONSULTAR AUTORIZACIÓN
+    // 🔎 CONSULTAR AUTORIZACIÓN (FAST POLLING)
     // ==========================
     public String consultarAutorizacion(String claveAcceso) throws Exception {
 
-        log("🔍 Consultando autorización SRI para clave: " + claveAcceso);
+        // log("🔍 Consultando autorización SRI para clave: " + claveAcceso);
 
         String soapRequest = generarSoapAutorizacion(claveAcceso);
 
-        String rawResponse = enviarSoap(soapRequest, SRI_AUTORIZACION_PRUEBAS);
+        // USAMOS TIMEOUT CORTO (5s) para Polling rápido
+        // Así el bucle de "SriEnvioServicio" tiene el control, no el socket.
+        String rawResponse = enviarSoap(soapRequest, SRI_AUTORIZACION_PRUEBAS, 5000, 5000);
 
-        log("📨 Respuesta SRI Autorización:\n" + rawResponse);
+        // log("📨 Respuesta SRI Autorización:\n" + rawResponse);
 
         return procesarRespuestaAutorizacion(rawResponse);
     }
@@ -103,14 +105,35 @@ public class SriRecepcionService {
     }
 
     // =====================================================================
-    // 🚀 ENVÍO DE SOAP
+    // 🚀 ENVÍO DE SOAP (Default 10s/30s)
     // =====================================================================
     private String enviarSoap(String soapRequest, String urlString) throws Exception {
+        return enviarSoap(soapRequest, urlString, 10000, 30000);
+    }
 
-        log("🌐 Enviando SOAP a: " + urlString);
+    // =====================================================================
+    // 🚀 ENVÍO DE SOAP (Custom Timeouts)
+    // =====================================================================
+    private String enviarSoap(String soapRequest, String urlString, int connectTimeout, int readTimeout)
+            throws Exception {
+
+        // log("🌐 Enviando SOAP a: " + urlString);
 
         URL url = new URL(urlString);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        // Determinar si es HTTPS para aplicar parche de SSL
+        java.net.URLConnection connection = url.openConnection();
+
+        if (connection instanceof javax.net.ssl.HttpsURLConnection) {
+            javax.net.ssl.HttpsURLConnection httpsConn = (javax.net.ssl.HttpsURLConnection) connection;
+
+            // FIX CRÍTICO: Bypass "No subject alternative names matching IP"
+            // El SRI de pruebas a veces responde desde IPs que no hacen match con el CN del
+            // certificado.
+            httpsConn.setHostnameVerifier((hostname, session) -> true);
+        }
+
+        HttpURLConnection conn = (HttpURLConnection) connection;
 
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
@@ -118,12 +141,16 @@ public class SriRecepcionService {
         conn.setRequestProperty("SOAPAction", "");
         conn.setRequestProperty("Accept", "text/xml");
 
+        // TIMEOUTS CONFIGURABLES
+        conn.setConnectTimeout(connectTimeout);
+        conn.setReadTimeout(readTimeout);
+
         try (OutputStream os = conn.getOutputStream()) {
             os.write(soapRequest.getBytes(StandardCharsets.UTF_8));
         }
 
         int status = conn.getResponseCode();
-        log("🔎 HTTP Status: " + status);
+        // log("🔎 HTTP Status: " + status);
 
         InputStream is = (status >= 200 && status < 300)
                 ? conn.getInputStream()

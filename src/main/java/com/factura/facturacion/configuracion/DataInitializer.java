@@ -67,23 +67,26 @@ public class DataInitializer implements CommandLineRunner {
         com.factura.facturacion.entidades.empresa.Empresa empresa = null;
         if (empresaRepositorio.count() == 0) {
             empresa = new com.factura.facturacion.entidades.empresa.Empresa();
-            empresa.setRuc("1790012345678"); // RUC dummy preferible de 13 digitos
-            empresa.setRazonSocial("Tienda 24 de Mayo");
-            empresa.setNombreComercial("Tienda 24 de Mayo");
-            empresa.setDireccionMatriz("Via 24 de mayo");
-            empresa.setObligadoLlevarContabilidad("SI");
+            empresa.setRuc("1104106453001"); // RUC REAL DEL USUARIO
+            empresa.setRazonSocial("CARLOS ANDRES SOTOMAYOR FIGUEROA");
+            empresa.setNombreComercial("CARLOS SOTOMAYOR");
+            empresa.setDireccionMatriz("Loja / Loja / 24 de Mayo");
+            empresa.setObligadoLlevarContabilidad("NO");
             empresa.setAmbiente("1"); // Pruebas
             empresa.setTipoEmision("1"); // Normal
             empresa = empresaRepositorio.save(empresa);
-            System.out.println(">> EMPRESA 'Tienda 24 de Mayo' CREADA");
+            System.out.println(">> EMPRESA 'CARLOS SOTOMAYOR' CREADA");
         } else {
             empresa = empresaRepositorio.findAll().get(0);
-            if (!"Tienda 24 de Mayo".equals(empresa.getRazonSocial())) {
-                empresa.setRazonSocial("Tienda 24 de Mayo");
-                empresa.setNombreComercial("Tienda 24 de Mayo");
-                empresa.setDireccionMatriz("Via 24 de mayo");
+            // Actualizar RUC y datos si son diferentes (para corregir el dummy)
+            if (!"1104106453001".equals(empresa.getRuc())) {
+                empresa.setRuc("1104106453001");
+                empresa.setRazonSocial("CARLOS ANDRES SOTOMAYOR FIGUEROA");
+                empresa.setNombreComercial("CARLOS SOTOMAYOR");
+                empresa.setDireccionMatriz("Loja / Loja / 24 de Mayo");
+                empresa.setObligadoLlevarContabilidad("NO");
                 empresaRepositorio.save(empresa);
-                System.out.println(">> EMPRESA ACTUALIZADA");
+                System.out.println(">> EMPRESA ACTUALIZADA A DATOS REALES");
             }
         }
 

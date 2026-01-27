@@ -68,8 +68,9 @@ public class FacturaReporteServicio {
 
         cellEmpresa.addElement(new Paragraph(dir, fontRegular));
         cellEmpresa.addElement(new Paragraph("RUC: " + factura.getEmpresa().getRuc(), fontRegular));
+        // FORZADO A 'SI' POR SOLICITUD DE USUARIO
         cellEmpresa.addElement(new Paragraph(
-                "Obligado a llevar contabilidad: " + factura.getEmpresa().getObligadoLlevarContabilidad(), fontSmall));
+                "Obligado a llevar contabilidad: SI", fontSmall));
         cellEmpresa.addElement(new Paragraph("\n")); // Espacio
 
         mainTable.addCell(cellEmpresa);
