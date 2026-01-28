@@ -45,17 +45,23 @@ public class SecurityConfig {
 
                         // RESTRICCIONES DE BORRADO (Solo Admin)
                         .requestMatchers(HttpMethod.DELETE, "/api/clientes/**").hasRole("ADMINISTRADOR")
+
+                        // RESTRICT PRODUCT MUTATIONS TO ADMIN
+                        .requestMatchers(HttpMethod.POST, "/api/productos/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.PUT, "/api/productos/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.DELETE, "/api/productos/**").hasRole("ADMINISTRADOR")
 
                         // PERMITIR TODO A CLIENTES Y PRODUCTOS (Para Crear/Editar/Leer)
                         // Nota: permitAll permite anónimos también. Si deseas requerir login para
                         // crear/editar, usa .authenticated()
-                        .requestMatchers(new AntPathRequestMatcher("/api/productos/**")).authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/productos/**").authenticated()
                         .requestMatchers(new AntPathRequestMatcher("/api/clientes/**")).authenticated()
 
                         // Endpoints protegidos
                         .requestMatchers(new AntPathRequestMatcher("/api/facturas/**")).authenticated()
                         .requestMatchers(new AntPathRequestMatcher("/api/sri/**")).authenticated()
+                        .requestMatchers(new AntPathRequestMatcher("/api/contabilidad/**"))
+                        .hasAnyRole("ADMINISTRADOR", "CONTADOR")
 
                         // Todo lo demás requiere autenticación
                         .anyRequest().authenticated())

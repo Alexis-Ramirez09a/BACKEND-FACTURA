@@ -15,15 +15,18 @@ public class ProductoServicio {
     private final com.factura.facturacion.servicios.catalogo.ProductoImpuestoServicio productoImpuestoServicio;
     private final com.factura.facturacion.repositorios.ImpuestoRepositorio impuestoRepositorio;
     private final com.factura.facturacion.repositorios.ImpuestoTarifaRepositorio impuestoTarifaRepositorio;
+    private final com.factura.facturacion.repositorios.ProductoImpuestoRepositorio productoImpuestoRepositorio;
 
     public ProductoServicio(ProductoRepositorio productoRepositorio,
             com.factura.facturacion.servicios.catalogo.ProductoImpuestoServicio productoImpuestoServicio,
             com.factura.facturacion.repositorios.ImpuestoRepositorio impuestoRepositorio,
-            com.factura.facturacion.repositorios.ImpuestoTarifaRepositorio impuestoTarifaRepositorio) {
+            com.factura.facturacion.repositorios.ImpuestoTarifaRepositorio impuestoTarifaRepositorio,
+            com.factura.facturacion.repositorios.ProductoImpuestoRepositorio productoImpuestoRepositorio) {
         this.productoRepositorio = productoRepositorio;
         this.productoImpuestoServicio = productoImpuestoServicio;
         this.impuestoRepositorio = impuestoRepositorio;
         this.impuestoTarifaRepositorio = impuestoTarifaRepositorio;
+        this.productoImpuestoRepositorio = productoImpuestoRepositorio;
     }
 
     public List<Producto> listarTodos() {
@@ -59,59 +62,98 @@ public class ProductoServicio {
             }
         }
 
-        // Opcional: Validar nombre exacto también si se desea
-        // ...
+        // Logic for update vs create to ensure we manipulate the managed entity
+        Producto entityToSave;
+        if (producto.getId() != null) {
+            entityToSave = productoRepositorio.findById(producto.getId())
+                    .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                            org.springframework.http.HttpStatus.NOT_FOUND, "Producto no encontrado"));
 
-        Producto guardado = productoRepositorio.save(producto);
+            // Update fields manually or via mapper
+            entityToSave.setCodigoPrincipal(producto.getCodigoPrincipal());
+            entityToSave.setDescripcion(producto.getDescripcion());
+            entityToSave.setPrecioUnitario(producto.getPrecioUnitario());
+            entityToSave.setCantidad(producto.getCantidad());
+            entityToSave.setIva(producto.getIva()); // Transient field for transport
+            entityToSave.setActivo(producto.getActivo());
+        } else {
+            entityToSave = producto;
+        }
 
-        // Si viene el campo IVA, guardar la relación
-        if (producto.getIva() != null) {
-            String codigoTarifa = "0"; // Default 0
-            if ("12".equals(producto.getIva()))
-                codigoTarifa = "2"; // 2 is 12%
-            else if ("15".equals(producto.getIva()))
-                codigoTarifa = "4";
-            else if ("0".equals(producto.getIva()))
-                codigoTarifa = "0"; // 0%
-
-            final String finalCodigoTarifa = codigoTarifa;
-
+        // Si viene el campo IVA, actualizar la relación
+        if (producto.getIva() != null && !producto.getIva().trim().isEmpty()) {
+            System.out.println("[DEBUG] Procesando IVA para producto: " + producto.getIva());
             try {
-                // System.out.println("BUSCANDO IMPUESTO IVA (2)...");
+                // Normalizar escala a 2 decimales para coincidir con BD (15 -> 15.00)
+                java.math.BigDecimal porcentaje = new java.math.BigDecimal(producto.getIva())
+                        .setScale(2, java.math.RoundingMode.HALF_UP);
+
+                System.out.println("[DEBUG] Porcentaje normalizado: " + porcentaje);
+
                 // Buscar Impuesto IVA (Codigo "2")
                 com.factura.facturacion.entidades.catalogo.Impuesto impuestoIva = impuestoRepositorio.findByCodigo("2")
                         .orElseThrow(() -> new RuntimeException("Impuesto IVA (Codigo 2) no encontrado en la BD."));
-                // System.out.println("IMPUESTO IVA ENCONTRADO: " + impuestoIva.getId());
 
-                // Buscar Tarifa
-                // System.out.println("BUSCANDO TARIFA: " + finalCodigoTarifa);
-                com.factura.facturacion.entidades.catalogo.ImpuestoTarifa tarifa = impuestoTarifaRepositorio
-                        .findByCodigoTarifaAndImpuesto(finalCodigoTarifa, impuestoIva)
-                        .stream().findFirst()
-                        .orElseThrow(
-                                () -> new RuntimeException("Tarifa no encontrada para codigo: " + finalCodigoTarifa));
-                // System.out.println("TARIFA ENCONTRADA: " + tarifa.getId());
+                // Buscar Tarifa por Porcentaje (dinámico)
+                java.util.Optional<com.factura.facturacion.entidades.catalogo.ImpuestoTarifa> tarifaOpt = impuestoTarifaRepositorio
+                        .findByImpuestoAndPorcentaje(impuestoIva, porcentaje);
 
-                // Borrar impuestos anteriores (simple logic for now)
-                // In a real app we might want to update, but deletion is safe for 1-to-many
-                // overwrite
-                // But ProductoImpuestoServicio might not have delete logic exposed easily.
-                // Let's rely on finding existing or creating new.
+                // Fallback: Si no encuentra por exactitud decimal, intentar por códigos
+                // estándar conocidos
+                if (tarifaOpt.isEmpty()) {
+                    System.out.println(
+                            "[DEBUG] No encontrado por porcentaje exacto (" + porcentaje + "). Intentando fallback...");
+                    String codigoFallback = null;
+                    // Comparison with compareTo ignores scale, which is safer
+                    if (porcentaje.compareTo(new java.math.BigDecimal("15")) == 0)
+                        codigoFallback = "4";
+                    else if (porcentaje.compareTo(new java.math.BigDecimal("12")) == 0)
+                        codigoFallback = "2";
+                    else if (porcentaje.compareTo(new java.math.BigDecimal("14")) == 0)
+                        codigoFallback = "3";
+                    else if (porcentaje.compareTo(java.math.BigDecimal.ZERO) == 0)
+                        codigoFallback = "0";
+                    else if (porcentaje.compareTo(new java.math.BigDecimal("5")) == 0)
+                        codigoFallback = "5"; // Example 5%
 
-                // For simplicity in this fix: Create new relationship
+                    if (codigoFallback != null) {
+                        System.out.println("[DEBUG] Buscando por Codigo Fallback: " + codigoFallback);
+                        tarifaOpt = impuestoTarifaRepositorio.findByCodigoTarifaAndImpuesto(codigoFallback,
+                                impuestoIva);
+                    }
+                }
+
+                com.factura.facturacion.entidades.catalogo.ImpuestoTarifa tarifa = tarifaOpt
+                        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                                org.springframework.http.HttpStatus.BAD_REQUEST,
+                                "No existe una tarifa de IVA configurada para el " + porcentaje
+                                        + "%. (Intente verificar los decimales o la configuración de impuestos)"));
+
+                // Manage relationships via Cascade (OrphanRemoval = true)
+                // 1. Clear existing
+                entityToSave.getImpuestos().clear();
+
+                // 2. Add new
                 com.factura.facturacion.entidades.catalogo.ProductoImpuesto pi = new com.factura.facturacion.entidades.catalogo.ProductoImpuesto();
-                pi.setProducto(guardado);
+                pi.setProducto(entityToSave);
                 pi.setImpuestoTarifa(tarifa);
-                productoImpuestoServicio.guardar(pi);
-                // System.out.println("RELACION PRODUCTO-IMPUESTO GUARDADA");
+
+                entityToSave.getImpuestos().add(pi);
+
+            } catch (NumberFormatException e) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "El valor del IVA debe ser numérico.");
             } catch (Exception e) {
                 System.out.println("ERROR GRAVE GUARDANDO IMPUESTO PRODUCTO: " + e.getMessage());
                 e.printStackTrace();
-                // No re-lanzamos para que no falle el guardado del producto en sí (opcional)
-                // throw e;
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Error al guardar impuesto: " + e.getMessage());
             }
         }
-        return guardado;
+
+        // Save the parent, which cascades the children
+        return productoRepositorio.save(entityToSave);
     }
 
     public void eliminarPorId(Long id) {

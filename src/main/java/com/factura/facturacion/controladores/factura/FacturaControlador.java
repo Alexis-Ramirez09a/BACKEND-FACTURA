@@ -37,11 +37,34 @@ public class FacturaControlador {
     public FacturaControlador(FacturaServicio facturaServicio,
             ClienteServicio clienteServicio,
             FacturaEmisionServicio facturaEmisionServicio,
-            com.factura.facturacion.servicios.sri.SriXmlBuilderServicio sriXmlBuilderServicio) {
+            com.factura.facturacion.servicios.sri.SriXmlBuilderServicio sriXmlBuilderServicio,
+            com.factura.facturacion.repositorios.seguridad.UsuarioRepositorio usuarioRepositorio,
+            com.factura.facturacion.repositorios.FacturaRepositorio facturaRepositorio) {
         this.facturaServicio = facturaServicio;
         this.clienteServicio = clienteServicio;
         this.facturaEmisionServicio = facturaEmisionServicio;
         this.sriXmlBuilderServicio = sriXmlBuilderServicio;
+        this.usuarioRepositorio = usuarioRepositorio;
+        this.facturaRepositorio = facturaRepositorio;
+    }
+
+    @Autowired
+    private com.factura.facturacion.repositorios.seguridad.UsuarioRepositorio usuarioRepositorio;
+
+    @Autowired
+    private com.factura.facturacion.repositorios.FacturaRepositorio facturaRepositorio;
+
+    @GetMapping("/mis-ventas")
+    public List<Factura> misVentas(org.springframework.security.core.Authentication authentication) {
+        String username = authentication.getName();
+        List<com.factura.facturacion.entidades.seguridad.Usuario> usuarios = usuarioRepositorio
+                .findByUsername(username);
+
+        if (usuarios.isEmpty()) {
+            throw new RuntimeException("Usuario no encontrado");
+        }
+
+        return facturaRepositorio.findByUsuario(usuarios.get(0));
     }
 
     // Listar todas las facturas
@@ -107,9 +130,22 @@ public class FacturaControlador {
 
     // Emitir factura completa (usa DTO y toda la lógica de emisión)
     @PostMapping("/emitir")
-    public ResponseEntity<?> emitir(@RequestBody FacturaCrearDto dto) {
+    public ResponseEntity<?> emitir(@RequestBody FacturaCrearDto dto,
+            org.springframework.security.core.Authentication authentication) {
         try {
             Factura factura = facturaEmisionServicio.emitirFactura(dto);
+
+            // Asignar usuario actual
+            if (authentication != null) {
+                String username = authentication.getName();
+                List<com.factura.facturacion.entidades.seguridad.Usuario> usuarios = usuarioRepositorio
+                        .findByUsername(username);
+                if (!usuarios.isEmpty()) {
+                    factura.setUsuario(usuarios.get(0));
+                    facturaRepositorio.save(factura);
+                }
+            }
+
             return ResponseEntity.ok(factura);
         } catch (RuntimeException e) {
             // PARA DEPURAR: devolvemos el mensaje de error

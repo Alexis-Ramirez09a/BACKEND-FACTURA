@@ -13,6 +13,8 @@ public interface ProductoImpuestoRepositorio extends JpaRepository<ProductoImpue
 
     // Todos los impuestos configurados para un producto
     List<ProductoImpuesto> findByProducto(Producto producto);
+
+    void deleteByProducto(Producto producto);
 }
-//Permite buscar todos los impuestos asociados a un producto específico
-//Maneja CRUD automático
+// Permite buscar todos los impuestos asociados a un producto específico
+// Maneja CRUD automático

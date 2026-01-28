@@ -15,36 +15,43 @@ import com.factura.facturacion.entidades.factura.Factura;
 @Repository
 public interface FacturaRepositorio extends JpaRepository<Factura, Long> {
 
-    // Buscar por establecimiento + punto de emisión + secuencial (número único de factura)
-    Optional<Factura> findByCodigoEstablecimientoAndCodigoPuntoEmisionAndSecuencial(
-            String codigoEstablecimiento,
-            String codigoPuntoEmision,
-            String secuencial
-    );
+        // Buscar por establecimiento + punto de emisión + secuencial (número único de
+        // factura)
+        Optional<Factura> findByCodigoEstablecimientoAndCodigoPuntoEmisionAndSecuencial(
+                        String codigoEstablecimiento,
+                        String codigoPuntoEmision,
+                        String secuencial);
 
-    // Buscar por cliente
-    List<Factura> findByCliente(Cliente cliente);
+        // Buscar por cliente
+        List<Factura> findByCliente(Cliente cliente);
 
-    // Buscar por rango de fechas
-    List<Factura> findByFechaEmisionBetween(LocalDate desde, LocalDate hasta);
+        // Buscar por usuario
+        List<Factura> findByUsuario(com.factura.facturacion.entidades.seguridad.Usuario usuario);
 
-    // Buscar por estado (PENDIENTE, AUTORIZADA, etc.)
-    List<Factura> findByEstado(String estado);
+        // Buscar por rango de fechas
+        List<Factura> findByFechaEmisionBetween(LocalDate desde, LocalDate hasta);
 
-    // Buscar por establecimiento y fecha
-    List<Factura> findByEstablecimientoAndFechaEmisionBetween(
-            Establecimiento establecimiento,
-            LocalDate desde,
-            LocalDate hasta
-    );
+        // Buscar por estado (PENDIENTE, AUTORIZADA, etc.)
+        List<Factura> findByEstado(String estado);
 
-    // Buscar por establecimiento + punto de emisión + rango de fechas
-    List<Factura> findByEstablecimientoAndPuntoEmisionAndFechaEmisionBetween(
-            Establecimiento establecimiento,
-            PuntoEmision puntoEmision,
-            LocalDate desde,
-            LocalDate hasta
-    );
+        // Buscar por establecimiento y fecha
+        List<Factura> findByEstablecimientoAndFechaEmisionBetween(
+                        Establecimiento establecimiento,
+                        LocalDate desde,
+                        LocalDate hasta);
+
+        // Buscar por establecimiento + punto de emisión + rango de fechas
+        List<Factura> findByEstablecimientoAndPuntoEmisionAndFechaEmisionBetween(
+                        Establecimiento establecimiento,
+                        PuntoEmision puntoEmision,
+                        LocalDate desde,
+                        LocalDate hasta);
+
+        @org.springframework.data.jpa.repository.Query("SELECT SUM(f.importeTotal) FROM Factura f WHERE f.fechaEmision BETWEEN :desde AND :hasta AND f.estado != 'ANULADA'")
+        java.math.BigDecimal sumTotalByFechaEmisionBetweenAndEstadoNot(
+                        @org.springframework.data.repository.query.Param("desde") LocalDate desde,
+                        @org.springframework.data.repository.query.Param("hasta") LocalDate hasta);
 }
-//Permite buscar facturas por varios criterios como establecimiento, punto de emisión, secuencial, cliente, rango de fechas y estado
-//Maneja CRUD automático
+// Permite buscar facturas por varios criterios como establecimiento, punto de
+// emisión, secuencial, cliente, rango de fechas y estado
+// Maneja CRUD automático

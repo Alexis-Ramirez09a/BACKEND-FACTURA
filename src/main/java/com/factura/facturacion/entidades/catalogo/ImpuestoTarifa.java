@@ -73,7 +73,8 @@ public class ImpuestoTarifa extends EntidadAuditable {
     }
 }
 
-//📌 ImpuestoTarifa = las tarifas o porcentajes aplicables a un impuesto del SRI.
-//📌 Un impuesto (IVA) puede tener varias tarifas (0%, 12%, etc.).
-//📌 Esta info se usa para calcular impuestos en productos y facturas.
-//📌 Es esencial para generar el XML que el SRI valida.
+// 📌 ImpuestoTarifa = las tarifas o porcentajes aplicables a un impuesto del
+// SRI.
+// 📌 Un impuesto (IVA) puede tener varias tarifas (0%, 12%, etc.).
+// 📌 Esta info se usa para calcular impuestos en productos y facturas.
+// 📌 Es esencial para generar el XML que el SRI valida.

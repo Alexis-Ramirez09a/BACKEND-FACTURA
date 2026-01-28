@@ -39,6 +39,11 @@ public class Factura extends EntidadAuditable {
     @JoinColumn(name = "cliente_id")
     private Cliente cliente;
 
+    @ManyToOne(optional = true) // Optional initially to avoid breaking existing data immediately, or force
+                                // false if we migrate
+    @JoinColumn(name = "usuario_id")
+    private com.factura.facturacion.entidades.seguridad.Usuario usuario;
+
     @Column(name = "tipo_comprobante", nullable = false, length = 2)
     private String tipoComprobante = "01"; // 01 = factura
 
@@ -162,6 +167,14 @@ public class Factura extends EntidadAuditable {
 
     public void setCliente(Cliente cliente) {
         this.cliente = cliente;
+    }
+
+    public com.factura.facturacion.entidades.seguridad.Usuario getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(com.factura.facturacion.entidades.seguridad.Usuario usuario) {
+        this.usuario = usuario;
     }
 
     public String getTipoComprobante() {
