@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import javax.xml.crypto.XMLStructure;
 import javax.xml.crypto.dsig.CanonicalizationMethod;
 import javax.xml.crypto.dsig.DigestMethod;
 import javax.xml.crypto.dsig.Reference;
@@ -72,13 +73,12 @@ public class FirmaElectronicaServicio implements FirmaStrategy {
                         // 3. Crear Factory y Contexto
                         XMLSignatureFactory fac = XMLSignatureFactory.getInstance("DOM");
                         DOMSignContext dsc = new DOMSignContext(privateKey, doc.getDocumentElement());
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+
                         // 4. Crear Reference (firmar todo el documento)
                         List<Transform> transforms = new ArrayList<>();
                         transforms.add(fac.newTransform(Transform.ENVELOPED, (TransformParameterSpec) null));
-                        // REMOVED: C14N Transform on Reference (Redundant and often cause of Error 39)
 
-                        Reference ref = fac.newReference("", fac.newDigestMethod(DigestMethod.SHA1, null),
+                        Reference ref = fac.newReference("", fac.newDigestMethod(DigestMethod.SHA256, null),
                                         transforms,
                                         null, null);
 
@@ -89,7 +89,7 @@ public class FirmaElectronicaServicio implements FirmaStrategy {
                         // 6. Crear SignedInfo
                         // Referencia a SignedProperties (Crucial para XAdES)
                         Reference refXades = fac.newReference("#" + signedPropsId,
-                                        fac.newDigestMethod(DigestMethod.SHA1, null),
+                                        fac.newDigestMethod(DigestMethod.SHA256, null),
                                         Collections.singletonList(
                                                         fac.newTransform(CanonicalizationMethod.INCLUSIVE,
                                                                         (TransformParameterSpec) null)),
@@ -102,15 +102,29 @@ public class FirmaElectronicaServicio implements FirmaStrategy {
                         SignedInfo si = fac.newSignedInfo(
                                         fac.newCanonicalizationMethod(CanonicalizationMethod.INCLUSIVE,
                                                         (C14NMethodParameterSpec) null),
-                                        fac.newSignatureMethod(SignatureMethod.RSA_SHA1, null),
+                                        fac.newSignatureMethod(SignatureMethod.RSA_SHA256, null),
                                         references);
 
-                        // 7. Crear KeyInfo
+                        // 7. Crear KeyInfo (Certificado + Clave Pública como pide el usuario)
                         KeyInfoFactory kif = fac.getKeyInfoFactory();
+                        List<XMLStructure> keyInfoContent = new ArrayList<>();
+
+                        // A. X509Data (Certificado)
                         List<Object> x509Content = new ArrayList<>();
-                        x509Content.add(cert); // Solo certificado, lo más compatible
+                        x509Content.add(cert);
                         X509Data xd = kif.newX509Data(x509Content);
-                        KeyInfo ki = kif.newKeyInfo(Collections.singletonList(xd));
+                        keyInfoContent.add(xd);
+
+                        // B. KeyValue (Clave Pública explícita - RSAKeyValue)
+                        // Esto coincide con la imagen del usuario ("clave de la firma encriptada")
+                        try {
+                                javax.xml.crypto.dsig.keyinfo.KeyValue kv = kif.newKeyValue(cert.getPublicKey());
+                                keyInfoContent.add(kv);
+                        } catch (Exception ex) {
+                                System.err.println("No se pudo agregar KeyValue: " + ex.getMessage());
+                        }
+
+                        KeyInfo ki = kif.newKeyInfo(keyInfoContent);
 
                         // 8. Estructura XAdES-BES
                         System.out.println(">> Creando XAdES...");
@@ -188,16 +202,6 @@ public class FirmaElectronicaServicio implements FirmaStrategy {
 
                 // SigningTime (FIX: Formato simple sin nanosegundos para compatibilidad SRI)
                 Element signingTime = doc.createElementNS(ETSI_URI, "etsi:SigningTime");
-                signingTime.setTextContent(
-                                java.time.ZonedDateTime.now()
-                                                .format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-                                                .split("\\.")[0]
-                                                + (java.time.ZonedDateTime.now().getOffset().toString().equals("Z")
-                                                                ? "+00:00"
-                                                                : java.time.ZonedDateTime.now().getOffset()
-                                                                                .toString()));
-                // Hack rápido para quitar nanos pero dejar Offset. Mejor usamos
-                // DateTimeFormatter custom si esto falla.
                 // Intentemos algo más robusto:
                 java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter
                                 .ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
@@ -216,12 +220,12 @@ public class FirmaElectronicaServicio implements FirmaStrategy {
                 certTag.appendChild(certDigest);
 
                 Element digestMethod = doc.createElementNS(ETSI_URI, "etsi:DigestMethod");
-                digestMethod.setAttribute("Algorithm", "http://www.w3.org/2000/09/xmldsig#sha1");
+                digestMethod.setAttribute("Algorithm", "http://www.w3.org/2001/04/xmlenc#sha256"); // UPDATE SHA256 URI
                 certDigest.appendChild(digestMethod);
 
                 Element digestValue = doc.createElementNS(ETSI_URI, "etsi:DigestValue");
-                // Calcular SHA1 del certificado
-                MessageDigest md = MessageDigest.getInstance("SHA-1");
+                // Calcular SHA256 del certificado
+                MessageDigest md = MessageDigest.getInstance("SHA-256");
                 byte[] hash = md.digest(cert.getEncoded());
                 digestValue.setTextContent(java.util.Base64.getEncoder().encodeToString(hash));
                 certDigest.appendChild(digestValue);

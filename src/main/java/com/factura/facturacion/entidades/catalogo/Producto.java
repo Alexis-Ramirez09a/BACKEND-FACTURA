@@ -33,6 +33,12 @@ public class Producto extends EntidadAuditable {
     @Column(nullable = false, columnDefinition = "boolean default true")
     private Boolean activo = true;
 
+    // Nuevo campo para guardar el ID del IVA en la tabla productos (como pidió el
+    // usuario)
+    @jakarta.persistence.ManyToOne
+    @jakarta.persistence.JoinColumn(name = "tarifa_iva_id")
+    private ImpuestoTarifa tarifaIva;
+
     // Getters y setters
 
     public String getCodigoPrincipal() {
@@ -95,6 +101,14 @@ public class Producto extends EntidadAuditable {
 
     public void setImpuestos(java.util.List<ProductoImpuesto> impuestos) {
         this.impuestos = impuestos;
+    }
+
+    public ImpuestoTarifa getTarifaIva() {
+        return tarifaIva;
+    }
+
+    public void setTarifaIva(ImpuestoTarifa tarifaIva) {
+        this.tarifaIva = tarifaIva;
     }
 }
 // 📌 Producto = bienes o servicios que la empresa vende y factura.//

@@ -7,8 +7,8 @@ public class FacturaDetalleCrearDto {
     private Long productoId;
     private BigDecimal cantidad;
     private BigDecimal precioUnitario; // opcional, si es null se usa el del producto
-    private BigDecimal descuento;      // opcional
-    private String descripcion;        // opcional
+    private BigDecimal descuento; // opcional
+    private String descripcion; // opcional
 
     public Long getProductoId() {
         return productoId;
@@ -48,5 +48,15 @@ public class FacturaDetalleCrearDto {
 
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
+    }
+
+    private String iva; // "12", "15", "0", etc. - Opcional para forzar tasa
+
+    public String getIva() {
+        return iva;
+    }
+
+    public void setIva(String iva) {
+        this.iva = iva;
     }
 }

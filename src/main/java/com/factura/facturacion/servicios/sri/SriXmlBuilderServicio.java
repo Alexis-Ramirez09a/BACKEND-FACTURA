@@ -105,56 +105,59 @@ public class SriXmlBuilderServicio {
       infoAdicionalXml.append("</infoAdicional>");
     }
 
-    // 4. Total Con Impuestos (Resumen)
-    // Por simplicidad, asumimos que ya tenemos los totales en la factura,
-    // pero para el XML se suele pedir agrupado por código de impuesto.
-    // Aquí simplificaremos mostrando el total de IVA si existe.
+    // 4. Total Con Impuestos (Resumen Agrupado Automático)
+    // Se recorren los impuestos de los detalles para generar el resumen a prueba de
+    // fallos
+    // (en lugar de confiar en que los campos de cabecera stén bien calculados)
     StringBuilder totalConImpuestosXml = new StringBuilder();
     totalConImpuestosXml.append("<totalConImpuestos>");
 
-    // IVA 12%
-    if (factura.getSubtotalIva12().compareTo(BigDecimal.ZERO) > 0) {
-      totalConImpuestosXml.append("""
-          <totalImpuesto>
-              <codigo>2</codigo>
-              <codigoPorcentaje>2</codigoPorcentaje>
-              <baseImponible>%s</baseImponible>
-              <valor>%s</valor>
-          </totalImpuesto>
-          """.formatted(factura.getSubtotalIva12().toPlainString(), factura.getValorIva().toPlainString()));
+    java.util.Map<String, java.util.Map<String, BigDecimal>> taxAcumulator = new java.util.HashMap<>();
+    // Key: "codigo-codigoPorcentaje" -> Map with Keys: "base", "valor"
+
+    for (FacturaDetalle det : factura.getDetalles()) {
+      for (FacturaDetalleImpuesto imp : det.getImpuestos()) {
+        String key = imp.getCodigoImpuesto() + "-" + imp.getCodigoPorcentaje();
+
+        taxAcumulator.putIfAbsent(key, new java.util.HashMap<>());
+        java.util.Map<String, BigDecimal> current = taxAcumulator.get(key);
+
+        BigDecimal base = current.getOrDefault("base", BigDecimal.ZERO);
+        BigDecimal valor = current.getOrDefault("valor", BigDecimal.ZERO);
+
+        current.put("base", base.add(imp.getBaseImponible()));
+        current.put("valor", valor.add(imp.getValor()));
+
+        // Store raw codes for reconstruction if needed, but key has them
+      }
     }
-    // IVA 0%
-    if (factura.getSubtotalIva0().compareTo(BigDecimal.ZERO) > 0) {
-      totalConImpuestosXml.append("""
-          <totalImpuesto>
-              <codigo>2</codigo>
-              <codigoPorcentaje>0</codigoPorcentaje>
-              <baseImponible>%s</baseImponible>
-              <valor>0.00</valor>
-          </totalImpuesto>
-          """.formatted(factura.getSubtotalIva0().toPlainString()));
-    }
-    // No Objeto
-    if (factura.getSubtotalNoObjetoIva().compareTo(BigDecimal.ZERO) > 0) {
-      totalConImpuestosXml.append("""
-          <totalImpuesto>
-              <codigo>2</codigo>
-              <codigoPorcentaje>6</codigoPorcentaje>
-              <baseImponible>%s</baseImponible>
-              <valor>0.00</valor>
-          </totalImpuesto>
-          """.formatted(factura.getSubtotalNoObjetoIva().toPlainString()));
-    }
-    // Exento
-    if (factura.getSubtotalExentoIva().compareTo(BigDecimal.ZERO) > 0) {
-      totalConImpuestosXml.append("""
-          <totalImpuesto>
-              <codigo>2</codigo>
-              <codigoPorcentaje>7</codigoPorcentaje>
-              <baseImponible>%s</baseImponible>
-              <valor>0.00</valor>
-          </totalImpuesto>
-          """.formatted(factura.getSubtotalExentoIva().toPlainString()));
+
+    // Sort keys to maintain order? Not strictly required but nice.
+    for (String key : taxAcumulator.keySet()) {
+      String[] parts = key.split("-");
+      String codigo = parts[0];
+      String codigoPorcentaje = parts[1];
+
+      java.util.Map<String, BigDecimal> values = taxAcumulator.get(key);
+      BigDecimal baseTotal = values.get("base");
+      BigDecimal valorTotal = values.get("valor");
+
+      // Skip if base is 0 (unless required for something specific, but usually skips)
+      if (baseTotal.compareTo(BigDecimal.ZERO) > 0 || "6".equals(codigoPorcentaje)) { // Include No Objeto even if 0?
+                                                                                      // Usually needs base.
+        totalConImpuestosXml.append("""
+            <totalImpuesto>
+                <codigo>%s</codigo>
+                <codigoPorcentaje>%s</codigoPorcentaje>
+                <baseImponible>%s</baseImponible>
+                <valor>%s</valor>
+            </totalImpuesto>
+            """.formatted(
+            codigo,
+            codigoPorcentaje,
+            baseTotal.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString(),
+            valorTotal.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString()));
+      }
     }
 
     totalConImpuestosXml.append("</totalConImpuestos>");
@@ -197,6 +200,28 @@ public class SriXmlBuilderServicio {
         if (razonSocial == null || razonSocial.isEmpty())
           razonSocial = "CONSUMIDOR FINAL";
       }
+    }
+
+    // OPTIMIZATION: Robust fallback for optional fields to avoid "null" text or
+    // empty tags
+    // 1. Nombre Comercial: Fallback to Razon Social if null/empty
+    String nombreComercial = factura.getEmpresa().getNombreComercial();
+    if (nombreComercial == null || nombreComercial.trim().isEmpty()) {
+      nombreComercial = factura.getEmpresa().getRazonSocial();
+    }
+
+    // 2. Dirección Establecimiento: Fallback to Matriz if null/empty
+    String dirEstablecimiento = factura.getEstablecimiento().getDireccion();
+    if (dirEstablecimiento == null || dirEstablecimiento.trim().isEmpty()) {
+      dirEstablecimiento = factura.getEmpresa().getDireccionMatriz();
+    }
+
+    // 3. Obligado Contabilidad (Safe Default)
+    String obligadoContabilidad = factura.getEmpresa().getObligadoLlevarContabilidad();
+    if (obligadoContabilidad == null || obligadoContabilidad.trim().isEmpty()) {
+      obligadoContabilidad = "NO"; // Safe default usually, but user seems to force SI often.
+      // Logic: if DB is null, check if we want to force SI based on user history,
+      // but Entity-driven is best. Let's make sure it's not null.
     }
 
     String xml = """

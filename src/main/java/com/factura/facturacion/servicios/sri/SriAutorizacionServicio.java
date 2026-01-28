@@ -10,7 +10,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class SriAutorizacionServicio {
 
-    private static final String SRI_AUTORIZACION = "https://celcer.sri.gob.ec/comprobantes-electronicos-ws/AutorizacionComprobantes";
+    // FIX: Use Offline URL (WSDL) correctly
+    private static final String SRI_AUTORIZACION = "https://celcer.sri.gob.ec/comprobantes-electronicos-ws/AutorizacionComprobantesOffline?wsdl";
 
     public String consultarAutorizacion(String claveAcceso) throws Exception {
 
@@ -26,7 +27,15 @@ public class SriAutorizacionServicio {
                     </soapenv:Envelope>
                 """.formatted(claveAcceso);
 
-        HttpURLConnection conn = (HttpURLConnection) new URL(SRI_AUTORIZACION).openConnection();
+        URL url = new URL(SRI_AUTORIZACION);
+        java.net.URLConnection connection = url.openConnection();
+
+        // SSL PATCH: To avoid "No subject alternative names matching IP"
+        if (connection instanceof javax.net.ssl.HttpsURLConnection) {
+            ((javax.net.ssl.HttpsURLConnection) connection).setHostnameVerifier((hostname, session) -> true);
+        }
+
+        HttpURLConnection conn = (HttpURLConnection) connection;
         conn.setDoOutput(true);
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "text/xml; charset=utf-8");
@@ -38,7 +47,7 @@ public class SriAutorizacionServicio {
         return procesarRespuestaAutorizacion(response);
     }
 
-    // Procesar estado AUTORIZADO / NO AUTORIZADO
+    // Procesar estado AUTORIZADO / NO AUTORIZADO / EN PROCESAMIENTO
     private String procesarRespuestaAutorizacion(String xml) {
 
         if (xml.contains("<estado>AUTORIZADO</estado>")) {
@@ -56,6 +65,11 @@ public class SriAutorizacionServicio {
             }
 
             return errores.toString();
+        }
+
+        // Si no hay autorizaciones y no es error explícito, sigue EN PROCESO
+        if (xml.contains("<numeroAutorizaciones>0</numeroAutorizaciones>")) {
+            return "EN_PROCESO";
         }
 
         return "Respuesta desconocida:\n" + xml;

@@ -120,9 +120,22 @@ public class ProductoServicio {
                         System.out.println("[DEBUG] Buscando por Codigo Fallback: " + codigoFallback);
                         tarifaOpt = impuestoTarifaRepositorio.findByCodigoTarifaAndImpuesto(codigoFallback,
                                 impuestoIva);
+
+                        // Self-healing: Crea la tax si no existe
+                        if (tarifaOpt.isEmpty()) {
+                            System.out.println("[DEBUG] Tarifa no existe en BD. AUTO-GENERANDO tarifa para código: "
+                                    + codigoFallback);
+                            com.factura.facturacion.entidades.catalogo.ImpuestoTarifa nuevaTarifa = new com.factura.facturacion.entidades.catalogo.ImpuestoTarifa();
+                            nuevaTarifa.setImpuesto(impuestoIva);
+                            nuevaTarifa.setCodigoTarifa(codigoFallback);
+                            nuevaTarifa.setPorcentaje(porcentaje);
+                            nuevaTarifa.setDescripcion("IVA " + porcentaje + "% (Auto-generado)");
+                            nuevaTarifa.setActivo(true);
+
+                            tarifaOpt = java.util.Optional.of(impuestoTarifaRepositorio.save(nuevaTarifa));
+                        }
                     }
                 }
-
                 com.factura.facturacion.entidades.catalogo.ImpuestoTarifa tarifa = tarifaOpt
                         .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                                 org.springframework.http.HttpStatus.BAD_REQUEST,
@@ -139,6 +152,10 @@ public class ProductoServicio {
                 pi.setImpuestoTarifa(tarifa);
 
                 entityToSave.getImpuestos().add(pi);
+
+                // ACTUALIZACIÓN DE NUEVA COLUMNA (User Requirement)
+                // Guardar la referencia directa a la tarifa también en la tabla productos
+                entityToSave.setTarifaIva(tarifa);
 
             } catch (NumberFormatException e) {
                 throw new org.springframework.web.server.ResponseStatusException(

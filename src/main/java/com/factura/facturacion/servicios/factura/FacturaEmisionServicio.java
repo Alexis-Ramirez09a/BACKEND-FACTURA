@@ -46,6 +46,8 @@ public class FacturaEmisionServicio {
         private final SecuencialDocumentoServicio secuencialDocumentoServicio;
         private final FacturaServicio facturaServicio;
         private final com.factura.facturacion.servicios.sri.SriEnvioServicio sriEnvioServicio;
+        private final com.factura.facturacion.repositorios.ImpuestoTarifaRepositorio impuestoTarifaRepositorio;
+        private final com.factura.facturacion.repositorios.ImpuestoRepositorio impuestoRepositorio;
 
         public FacturaEmisionServicio(EmpresaServicio empresaServicio,
                         EstablecimientoServicio establecimientoServicio,
@@ -56,7 +58,9 @@ public class FacturaEmisionServicio {
                         FormaPagoServicio formaPagoServicio,
                         SecuencialDocumentoServicio secuencialDocumentoServicio,
                         FacturaServicio facturaServicio,
-                        com.factura.facturacion.servicios.sri.SriEnvioServicio sriEnvioServicio) {
+                        com.factura.facturacion.servicios.sri.SriEnvioServicio sriEnvioServicio,
+                        com.factura.facturacion.repositorios.ImpuestoTarifaRepositorio impuestoTarifaRepositorio,
+                        com.factura.facturacion.repositorios.ImpuestoRepositorio impuestoRepositorio) {
                 this.empresaServicio = empresaServicio;
                 this.establecimientoServicio = establecimientoServicio;
                 this.puntoEmisionServicio = puntoEmisionServicio;
@@ -67,6 +71,8 @@ public class FacturaEmisionServicio {
                 this.secuencialDocumentoServicio = secuencialDocumentoServicio;
                 this.facturaServicio = facturaServicio;
                 this.sriEnvioServicio = sriEnvioServicio;
+                this.impuestoTarifaRepositorio = impuestoTarifaRepositorio;
+                this.impuestoRepositorio = impuestoRepositorio;
         }
 
         @Transactional
@@ -140,6 +146,7 @@ public class FacturaEmisionServicio {
                 BigDecimal totalSinImpuestos = BigDecimal.ZERO;
                 BigDecimal totalDescuento = BigDecimal.ZERO;
                 BigDecimal subtotalIva12 = BigDecimal.ZERO;
+                BigDecimal subtotalIva15 = BigDecimal.ZERO; // NEW FIELD
                 BigDecimal subtotalIva0 = BigDecimal.ZERO;
                 BigDecimal subtotalNoObjeto = BigDecimal.ZERO;
                 BigDecimal subtotalExento = BigDecimal.ZERO;
@@ -154,8 +161,7 @@ public class FacturaEmisionServicio {
                         detalle.setFactura(factura);
                         detalle.setProducto(producto);
                         detalle.setCodigoPrincipal(producto.getCodigoPrincipal());
-                        // detalle.setCodigoAuxiliar(producto.getCodigoAuxiliar()); // Removed from
-                        // product
+                        // detalle.setCodigoAuxiliar(producto.getCodigoAuxiliar());
                         detalle.setDescripcion(detDto.getDescripcion() != null ? detDto.getDescripcion()
                                         : producto.getDescripcion());
 
@@ -188,11 +194,74 @@ public class FacturaEmisionServicio {
                         totalSinImpuestos = totalSinImpuestos.add(precioTotalSinImp);
                         totalDescuento = totalDescuento.add(descuento != null ? descuento : BigDecimal.ZERO);
 
-                        // Impuestos del producto
-                        List<ProductoImpuesto> productosImpuestos = productoImpuestoServicio
-                                        .listarPorProducto(producto);
-                        for (ProductoImpuesto pi : productosImpuestos) {
-                                ImpuestoTarifa tarifa = pi.getImpuestoTarifa();
+                        // Determinar los impuestos a aplicar
+                        // Lógica: Si viene el IVA en el DTO, forzamos ese. Si no, usamos los del
+                        // producto.
+                        List<ImpuestoTarifa> tarifasAplicar = new java.util.ArrayList<>();
+
+                        // Override logic
+                        if (detDto.getIva() != null && !detDto.getIva().isEmpty()) {
+                                String ivaSolicitado = detDto.getIva();
+                                String codigoTarifaBusqueda = "2"; // Default 12%
+
+                                // Mapping simple (debería ser más robusto, pero funciona para lo urgente)
+                                // Reference: Table 17 SRI
+                                if ("12".equals(ivaSolicitado))
+                                        codigoTarifaBusqueda = "2";
+                                else if ("15".equals(ivaSolicitado))
+                                        codigoTarifaBusqueda = "4";
+                                else if ("0".equals(ivaSolicitado))
+                                        codigoTarifaBusqueda = "0";
+                                else if ("NO".equals(ivaSolicitado))
+                                        codigoTarifaBusqueda = "6"; // No objeto
+                                else if ("EX".equals(ivaSolicitado))
+                                        codigoTarifaBusqueda = "7"; // Exento
+                                else {
+                                        // Fallback try to find exact percentage if it's a number like "13"
+                                        // Not implemented yet, assumes standard codes.
+                                }
+
+                                // Buscar la tarifa en BD (Impuesto 2 = IVA)
+                                java.util.Optional<ImpuestoTarifa> tarifaOpt = impuestoTarifaRepositorio
+                                                .findByImpuesto_CodigoAndCodigoTarifa("2", codigoTarifaBusqueda);
+
+                                if (tarifaOpt.isPresent()) {
+                                        tarifasAplicar.add(tarifaOpt.get());
+                                } else {
+                                        // AUTO-HEALING: Create missing tariff (especially for 15%)
+                                        if ("4".equals(codigoTarifaBusqueda)) {
+                                                com.factura.facturacion.entidades.catalogo.Impuesto impuestoIva = impuestoRepositorio
+                                                                .findByCodigo("2").orElse(null);
+                                                if (impuestoIva != null) {
+                                                        ImpuestoTarifa nuevaTarifa = new ImpuestoTarifa();
+                                                        nuevaTarifa.setImpuesto(impuestoIva);
+                                                        nuevaTarifa.setCodigoTarifa("4");
+                                                        nuevaTarifa.setPorcentaje(new BigDecimal("15.00"));
+                                                        nuevaTarifa.setDescripcion("IVA 15%");
+                                                        nuevaTarifa.setActivo(true);
+
+                                                        nuevaTarifa = impuestoTarifaRepositorio.save(nuevaTarifa);
+                                                        tarifasAplicar.add(nuevaTarifa);
+                                                } else {
+                                                        // Fallback if Impuesto IVA not found
+                                                        productoImpuestoServicio.listarPorProducto(producto)
+                                                                        .forEach(pi -> tarifasAplicar
+                                                                                        .add(pi.getImpuestoTarifa()));
+                                                }
+                                        } else {
+                                                // Fallback to product taxes
+                                                productoImpuestoServicio.listarPorProducto(producto)
+                                                                .forEach(pi -> tarifasAplicar
+                                                                                .add(pi.getImpuestoTarifa()));
+                                        }
+                                }
+                        } else {
+                                // Default behavior
+                                productoImpuestoServicio.listarPorProducto(producto)
+                                                .forEach(pi -> tarifasAplicar.add(pi.getImpuestoTarifa()));
+                        }
+
+                        for (ImpuestoTarifa tarifa : tarifasAplicar) {
 
                                 FacturaDetalleImpuesto detImp = new FacturaDetalleImpuesto();
                                 detImp.setDetalle(detalle);
@@ -213,16 +282,20 @@ public class FacturaEmisionServicio {
 
                                 detImp.setValor(valorImp);
 
-                                // Sumar a totales de la factura según tipo de impuesto/tarifa
+                                // Sumar a totales de la factura
                                 if ("2".equals(codigoImpuesto)) { // IVA
-                                        if ("2".equals(tarifa.getCodigoTarifa())) { // IVA 12%
+                                        String codigoTarifa = tarifa.getCodigoTarifa();
+                                        if ("2".equals(codigoTarifa)) { // IVA 12%
                                                 subtotalIva12 = subtotalIva12.add(precioTotalSinImp);
                                                 valorIva = valorIva.add(valorImp);
-                                        } else if ("0".equals(tarifa.getCodigoTarifa())) { // IVA 0%
+                                        } else if ("4".equals(codigoTarifa)) { // IVA 15% (NEW)
+                                                subtotalIva15 = subtotalIva15.add(precioTotalSinImp);
+                                                valorIva = valorIva.add(valorImp);
+                                        } else if ("0".equals(codigoTarifa)) { // IVA 0%
                                                 subtotalIva0 = subtotalIva0.add(precioTotalSinImp);
-                                        } else if ("6".equals(tarifa.getCodigoTarifa())) { // No objeto
+                                        } else if ("6".equals(codigoTarifa)) { // No objeto
                                                 subtotalNoObjeto = subtotalNoObjeto.add(precioTotalSinImp);
-                                        } else if ("7".equals(tarifa.getCodigoTarifa())) { // Exento
+                                        } else if ("7".equals(codigoTarifa)) { // Exento
                                                 subtotalExento = subtotalExento.add(precioTotalSinImp);
                                         }
                                 }
@@ -237,6 +310,7 @@ public class FacturaEmisionServicio {
                 factura.setTotalSinImpuestos(totalSinImpuestos);
                 factura.setTotalDescuento(totalDescuento);
                 factura.setSubtotalIva12(subtotalIva12);
+                factura.setSubtotalIva15(subtotalIva15); // Set new field
                 factura.setSubtotalIva0(subtotalIva0);
                 factura.setSubtotalNoObjetoIva(subtotalNoObjeto);
                 factura.setSubtotalExentoIva(subtotalExento);
@@ -314,13 +388,20 @@ public class FacturaEmisionServicio {
                 // 8. Guardar factura completa
                 Factura facturaGuardada = facturaServicio.guardar(factura);
 
+                // 9. ENVIAR AUTOMÁTICAMENTE AL SRI (Firma + Envío)
                 try {
-                        // Solo generamos el XML (el método enviar ya no cambia estado a 'RECIBIDA')
-                        // sriEnvioServicio.enviar(facturaGuardada); // REMOVE AUTO-SEND
-                        // sriEnvioServicio.autorizar(facturaGuardada); // ELIMINADO para evitar
-                        // auto-aprobación
+                        System.out.println(">> Iniciando envío automático al SRI...");
+                        facturaGuardada = sriEnvioServicio.enviar(facturaGuardada);
+                        System.out.println(">> Envío completado. Estado: " + facturaGuardada.getEstado());
                 } catch (Exception e) {
-                        System.out.println("Error generando XML: " + e.getMessage());
+                        System.err.println(">> ERROR en envío SRI: " + e.getMessage());
+                        e.printStackTrace();
+                        // Guardar el error en la factura para que el frontend lo vea
+                        facturaGuardada.setEstado("RECHAZADA");
+                        facturaGuardada.setMensajeError("Error al enviar al SRI: " + e.getMessage());
+                        facturaGuardada = facturaServicio.guardar(facturaGuardada);
+                        // Re-lanzar para que el frontend reciba el error
+                        throw new RuntimeException("Error al enviar factura al SRI: " + e.getMessage(), e);
                 }
 
                 return facturaGuardada;

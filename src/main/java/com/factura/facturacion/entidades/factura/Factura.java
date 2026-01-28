@@ -82,6 +82,9 @@ public class Factura extends EntidadAuditable {
     @Column(name = "subtotal_iva_12", nullable = false, precision = 12, scale = 2)
     private BigDecimal subtotalIva12 = BigDecimal.ZERO;
 
+    @Column(name = "subtotal_iva_15", nullable = false, precision = 12, scale = 2)
+    private BigDecimal subtotalIva15 = BigDecimal.ZERO;
+
     @Column(name = "subtotal_iva_0", nullable = false, precision = 12, scale = 2)
     private BigDecimal subtotalIva0 = BigDecimal.ZERO;
 
@@ -271,6 +274,14 @@ public class Factura extends EntidadAuditable {
 
     public void setSubtotalIva12(BigDecimal subtotalIva12) {
         this.subtotalIva12 = subtotalIva12;
+    }
+
+    public BigDecimal getSubtotalIva15() {
+        return subtotalIva15;
+    }
+
+    public void setSubtotalIva15(BigDecimal subtotalIva15) {
+        this.subtotalIva15 = subtotalIva15;
     }
 
     public BigDecimal getSubtotalIva0() {

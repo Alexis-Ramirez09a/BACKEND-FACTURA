@@ -62,17 +62,30 @@ public class SriEnvioServicio {
             }
 
             // 2. Generar XML
+            System.out.println(">> Generando XML sin firmar...");
             String xml = xmlBuilder.construirXmlFactura(factura);
+            System.out.println(">> XML generado. Longitud: " + xml.length() + " caracteres");
 
             // 3. Firmar XML
             byte[] xmlFirmadoBytes;
+            System.out.println(">> Estrategia de firma: " + estrategiaFirma);
+            System.out.println(">> Path firma: " + pathFirma);
+
             if ("REAL".equalsIgnoreCase(estrategiaFirma)) {
-                xmlFirmadoBytes = firmaStrategy.firmar(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8), pathFirma,
-                        claveFirma);
-                System.out.println(">> XML Firmado correctamente.");
+                System.out.println(">> Iniciando firma electrónica...");
+                try {
+                    xmlFirmadoBytes = firmaStrategy.firmar(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                            pathFirma,
+                            claveFirma);
+                    System.out.println(">> ✓ XML Firmado. Tamaño: " + xmlFirmadoBytes.length + " bytes");
+                } catch (Exception e) {
+                    System.err.println(">> ✗ ERROR AL FIRMAR:");
+                    e.printStackTrace();
+                    throw new RuntimeException("Error al firmar XML: " + e.getMessage(), e);
+                }
             } else {
                 xmlFirmadoBytes = xml.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                System.out.println(">> MODO MOCK/DEV: XML NO firmado (o estrategia NoOp).");
+                System.out.println(">> MODO MOCK/DEV: XML NO firmado.");
             }
 
             // Guardar XML
@@ -84,6 +97,19 @@ public class SriEnvioServicio {
             }
             Path rutaArchivo = rutaCarpeta.resolve(nombreArchivo);
             Files.write(rutaArchivo, xmlFirmadoBytes);
+
+            // VERIFICACIÓN: Confirmar que el XML contiene la firma
+            String xmlFirmadoStr = new String(xmlFirmadoBytes, java.nio.charset.StandardCharsets.UTF_8);
+            if (xmlFirmadoStr.contains("<Signature") && xmlFirmadoStr.contains("</Signature>")) {
+                System.out.println(">> ✓ FIRMA ELECTRÓNICA VERIFICADA en el XML");
+                System.out
+                        .println(">> XML contiene " + xmlFirmadoStr.split("<Signature").length + " bloque(s) de firma");
+            } else {
+                System.err.println(">> ⚠ ADVERTENCIA: XML NO contiene bloque <Signature>");
+                System.err.println(">> Primeros 300 caracteres:");
+                System.err.println(xmlFirmadoStr.substring(0, Math.min(300, xmlFirmadoStr.length())));
+            }
+
             System.out.println(">> XML FACTURA GUARDADO EN: " + rutaArchivo.toString());
 
             // 4. ENVIAR A RECEPCIÓN (REAL)
@@ -141,9 +167,11 @@ public class SriEnvioServicio {
         String respuestaAutorizacion = "";
         boolean yaAutorizado = false;
 
-        // 60 intentos de 1 segundo = 60 segundos máximo
-        // Volvemos a aumentar el tiempo porque el SRI está respondiendo lento
-        for (int i = 0; i < 60; i++) {
+        // OPTIMIZACIÓN: Polling rápido para respuesta "inmediata" (< 2.5s)
+        // Intentamos 5 veces con pausas de 400ms = ~2 segundos (+ overhead de red)
+        int MAX_INTENTOS = 5;
+
+        for (int i = 0; i < MAX_INTENTOS; i++) {
             System.out.println(">> Intento de autorización #" + (i + 1));
             respuestaAutorizacion = sriRecepcionService.consultarAutorizacion(factura.getClaveAcceso());
 
@@ -165,25 +193,24 @@ public class SriEnvioServicio {
                 factura.setMensajeError(respuestaAutorizacion);
                 yaAutorizado = true;
                 break;
+            } else if (respuestaAutorizacion.equals("EN_PROCESO")) {
+                // SRI dice explícitamente que no está listo.
+                // Seguimos esperando en el bucle.
+                System.out.println(">> SRI: Comprobante aún en procesamiento...");
             }
 
-            // Si no, esperamos 1 segundo (más rápido)
-            if (i < 59) {
-                Thread.sleep(1000);
+            // Si no, esperamos brevemente (fast poll)
+            if (i < (MAX_INTENTOS - 1)) {
+                Thread.sleep(400); // 400ms * 5 = 2.0s
             }
         }
 
         if (!yaAutorizado) {
-            // Si pasaron 60 segundos y nada...
-            // ELIMINADO: Ya no devolvemos EN_PROCESO
-            // if
-            // (respuestaAutorizacion.contains("<numeroComprobantes>0</numeroComprobantes>"))
-            // ...
-
-            // NUEVA LÓGICA: Si no responde a tiempo, lo marcamos como RECHAZADA (Timeout)
-            // para que el usuario reciba la alerta roja y sepa que no se completó.
-            factura.setEstado("RECHAZADA");
-            factura.setMensajeError("Tiempo de espera agotado (60s). El SRI no respondió.");
+            // Si pasaron los intentos y nada...
+            // NUEVA LÓGICA: Marcamos como EN_PROCESO para evitar timeout en frontend.
+            // El usuario podrá consultar manualmente con el botón "Actualizar Estado".
+            factura.setEstado("EN_PROCESO");
+            factura.setMensajeError("En espera del SRI. Consulte nuevamente en unos momentos.");
         }
     }
 
