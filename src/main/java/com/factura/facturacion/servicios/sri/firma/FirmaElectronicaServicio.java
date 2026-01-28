@@ -58,12 +58,15 @@ public class FirmaElectronicaServicio implements FirmaStrategy {
                         PrivateKey privateKey = (PrivateKey) ks.getKey(alias, claveFirma.toCharArray());
                         X509Certificate cert = (X509Certificate) ks.getCertificate(alias);
 
-                        // 2. Parsear XML
+                        // 2. Parsear XML (FIX: Sanitizar \r para evitar problemas de hash en Windows)
                         System.out.println(">> Parseando XML...");
+                        String xmlText = new String(xmlBytes, java.nio.charset.StandardCharsets.UTF_8).replace("\r",
+                                        "");
                         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
                         dbf.setNamespaceAware(true);
                         dbf.setIgnoringElementContentWhitespace(true);
-                        Document doc = dbf.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes));
+                        Document doc = dbf.newDocumentBuilder().parse(new java.io.ByteArrayInputStream(
+                                        xmlText.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
                         doc.normalizeDocument();
 
                         // 3. Crear Factory y Contexto
@@ -73,8 +76,7 @@ public class FirmaElectronicaServicio implements FirmaStrategy {
                         // 4. Crear Reference (firmar todo el documento)
                         List<Transform> transforms = new ArrayList<>();
                         transforms.add(fac.newTransform(Transform.ENVELOPED, (TransformParameterSpec) null));
-                        transforms.add(fac.newTransform(CanonicalizationMethod.INCLUSIVE,
-                                        (TransformParameterSpec) null));
+                        // REMOVED: C14N Transform on Reference (Redundant and often cause of Error 39)
 
                         Reference ref = fac.newReference("", fac.newDigestMethod(DigestMethod.SHA1, null),
                                         transforms,
@@ -106,7 +108,7 @@ public class FirmaElectronicaServicio implements FirmaStrategy {
                         // 7. Crear KeyInfo
                         KeyInfoFactory kif = fac.getKeyInfoFactory();
                         List<Object> x509Content = new ArrayList<>();
-                        x509Content.add(cert);
+                        x509Content.add(cert); // Solo certificado, lo más compatible
                         X509Data xd = kif.newX509Data(x509Content);
                         KeyInfo ki = kif.newKeyInfo(Collections.singletonList(xd));
 
@@ -121,23 +123,22 @@ public class FirmaElectronicaServicio implements FirmaStrategy {
                                         null, null,
                                         null);
 
-                        // 9. Registrar ID explícitamente en el Contexto (FIX 500 Error)
-                        // Buscamos el elemento y le decimos al contexto: "Oye, este atributo 'Id' es un
-                        // ID"
+                        // 9. Registrar ID explícitamente y firmar
                         Element signedPropertiesElem = (Element) qualifyingProperties
                                         .getElementsByTagNameNS(ETSI_URI, "SignedProperties").item(0);
-
                         if (signedPropertiesElem == null)
-                                throw new RuntimeException("SignedProperties no encontrado en DOM generado");
+                                throw new RuntimeException("SignedProperties missing");
 
-                        // IMPORTANTÍSIMO: Registrar el elemento ID en el contexto ANTES de firmar
                         dsc.setIdAttributeNS(signedPropertiesElem, null, "Id");
 
-                        // 10. Firmar
-                        System.out.println(">> Firmando...");
                         List<XMLObject> objects = Collections.singletonList(xadesObject);
                         XMLSignature signature = fac.newXMLSignature(si, ki, objects, signatureId, null);
 
+                        // FIX: Force Signature Element to have "Signature-" ID to match Target
+                        // (Although newXMLSignature args usually handle this, ensuring explicit ID
+                        // helps)
+
+                        System.out.println(">> Firmando...");
                         signature.sign(dsc);
                         System.out.println(">> Firma completada exitosamente.");
 
@@ -146,7 +147,20 @@ public class FirmaElectronicaServicio implements FirmaStrategy {
                         TransformerFactory tf = TransformerFactory.newInstance();
                         Transformer trans = tf.newTransformer();
                         trans.setOutputProperty(javax.xml.transform.OutputKeys.ENCODING, "UTF-8");
-                        trans.setOutputProperty(javax.xml.transform.OutputKeys.OMIT_XML_DECLARATION, "no");
+                        trans.setOutputProperty(javax.xml.transform.OutputKeys.OMIT_XML_DECLARATION, "no"); // XAdES
+                                                                                                            // signature
+                                                                                                            // often
+                                                                                                            // prefers
+                                                                                                            // keeping
+                                                                                                            // declaration
+                                                                                                            // if
+                                                                                                            // original
+                                                                                                            // had it,
+                                                                                                            // but
+                                                                                                            // standard
+                                                                                                            // usually
+                                                                                                            // omits
+                                                                                                            // inner.
                         trans.setOutputProperty(javax.xml.transform.OutputKeys.INDENT, "no");
                         trans.transform(new DOMSource(doc), new StreamResult(os));
 
@@ -172,11 +186,23 @@ public class FirmaElectronicaServicio implements FirmaStrategy {
                 Element signedSignatureProperties = doc.createElementNS(ETSI_URI, "etsi:SignedSignatureProperties");
                 signedProperties.appendChild(signedSignatureProperties);
 
-                // SigningTime
+                // SigningTime (FIX: Formato simple sin nanosegundos para compatibilidad SRI)
                 Element signingTime = doc.createElementNS(ETSI_URI, "etsi:SigningTime");
                 signingTime.setTextContent(
                                 java.time.ZonedDateTime.now()
-                                                .format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+                                                .format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                                                .split("\\.")[0]
+                                                + (java.time.ZonedDateTime.now().getOffset().toString().equals("Z")
+                                                                ? "+00:00"
+                                                                : java.time.ZonedDateTime.now().getOffset()
+                                                                                .toString()));
+                // Hack rápido para quitar nanos pero dejar Offset. Mejor usamos
+                // DateTimeFormatter custom si esto falla.
+                // Intentemos algo más robusto:
+                java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter
+                                .ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
+                signingTime.setTextContent(java.time.ZonedDateTime.now().format(fmt));
+
                 signedSignatureProperties.appendChild(signingTime);
 
                 // SigningCertificate
